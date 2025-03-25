@@ -1,0 +1,2 @@
+# AICoachDemo
+AI教练的Demo演示，根据题库询问问题以及连接本地AI解答用户疑问
