@@ -1,0 +1,110 @@
+[
+  {
+    "question_id": "S01.01.001",
+    "question_type": "图文选择题",
+    "question": {
+      "text": "如图所示，机动车在高速公路上因故障无法移动、停在行车道上时，驾乘人员应在哪个位置等待救援？",
+      "image": "media/image1.jpeg"
+    },
+    "options": {
+      "A": {
+        "text": "图中位置B",
+        "is_correct": false,
+        "analysis": {
+          "text": "位置B位于行车道内，未转移到安全区域，停留在行车道会引发二次事故风险。",
+          "reference": "",
+          "key_point": ""
+        }
+      },
+      "B": {
+        "text": "图中位置A",
+        "is_correct": false,
+        "analysis": {
+          "text": "位置A为故障车辆停放处，驾乘人员必须离开车辆，不可在车内等待。",
+          "reference": "",
+          "key_point": ""
+        }
+      },
+      "C": {
+        "text": "图中位置C",
+        "is_correct": false,
+        "analysis": {
+          "text": "位置C未明确标注为安全区域，可能仍处于行车风险范围内。",
+          "reference": "",
+          "key_point": ""
+        }
+      },
+      "D": {
+        "text": "图中位置D",
+        "is_correct": true,
+        "analysis": {
+          "text": "根据《道路交通安全法》第六十八条，驾乘人员应迅速转移至右侧路肩或应急车道（图中位置D）等待救援，确保人身安全。",
+          "reference": "《道路交通安全法》第六十八条",
+          "key_point": "高速公路机动车故障处置"
+        }
+      }
+    },
+    "answer_summary": {
+      "correct_option": "D",
+      "global_analysis": {
+        "text": "高速公路故障处理核心原则：人员立即撤离至安全区域（如应急车道），避免停留在行车道。",
+        "reference": "《道路交通安全法》第六十八条"
+      }
+    },
+    "knowledge_tags": ["S-特殊场景驾驶", "S01-高速公路规则", "S01.01-故障处理"]
+  },
+  {
+    "question_id": "D01.02.001",
+    "question_type": "图文选择题",
+    "question": {
+      "text": "如图所示，在这条车道行驶的最低车速是多少？",
+      "image": "media/image1.jpeg"
+    },
+    "options": {
+      "A": {
+        "text": "60公里/小时",
+        "is_correct": false,
+        "analysis": {
+          "text": "60公里/小时是高速公路的全局最低限速，但本题针对的是同方向2条车道中左侧车道的最低车速要求。",
+          "reference": "",
+          "key_point": ""
+        }
+      },
+      "B": {
+        "text": "90公里/小时",
+        "is_correct": false,
+        "analysis": {
+          "text": "90公里/小时是同方向3条车道中间车道的最低限速，而本题车道为2条车道左侧车道。",
+          "reference": "",
+          "key_point": ""
+        }
+      },
+      "C": {
+        "text": "100公里/小时",
+        "is_correct": true,
+        "analysis": {
+          "text": "根据《道路交通安全法实施条例》第七十八条，同方向有2条车道的左侧车道最低车速为100公里/小时。图中车辆位于左侧车道，因此正确答案为C。",
+          "reference": "《道路交通安全法实施条例》第七十八条",
+          "key_point": "高速公路限速规定"
+        }
+      },
+      "D": {
+        "text": "110公里/小时",
+        "is_correct": false,
+        "analysis": {
+          "text": "110公里/小时是同方向3条以上车道最左侧车道的最低限速，本题车道为2条车道，不适用此规则。",
+          "reference": "",
+          "key_point": ""
+        }
+      }
+    },
+    "answer_summary": {
+      "correct_option": "C",
+      "global_analysis": {
+        "text": "高速公路车道最低车速规则：同方向2条车道的左侧车道为100公里/小时，3条以上车道的最左侧车道为110公里/小时，中间车道为90公里/小时。",
+        "reference": "《道路交通安全法实施条例》第七十八条"
+      }
+    },
+    "knowledge_tags": ["D-驾驶操作与安全常识", "D01-速度限制", "D01.02-高速公路限速"]
+  }
+]
