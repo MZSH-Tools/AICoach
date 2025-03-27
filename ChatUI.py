@@ -9,7 +9,7 @@ class ChatUI:
         self.Root.configure(bg="white")
         self.Root.minsize(400, 500)
         self.InitGeometry(960, 700)
-        self.OnUserInput = None
+        self.OnAIRequested = None  # 外部绑定 AI 处理逻辑回调
 
         # 配色主题
         self.UserBubbleColor = "#d4edda"
@@ -140,16 +140,15 @@ class ChatUI:
         UserInput, Placeholder = self.InputQueue.get()
         self.UpdatePlaceholder(Placeholder, "AI 教练正在思考中...")
 
-        self.Root.after(2000, lambda: self.CompleteReply(UserInput, Placeholder))
+        if self.OnAIRequested:
+            self.OnAIRequested(UserInput, Placeholder)
 
     def UpdatePlaceholder(self, PlaceholderContainer, NewText):
         for widget in PlaceholderContainer.winfo_children():
             if isinstance(widget, tk.Label):
                 widget.config(text=NewText)
 
-    def CompleteReply(self, UserInput, Placeholder):
-        # 模拟 AI 回复内容
-        AIResponse = f"AI 教练解析：这是对「{UserInput}」的解答示例。"
+    def CompleteReply(self, AIResponse, Placeholder):
         self.UpdatePlaceholder(Placeholder, AIResponse)
         self.Processing = False
         self.TryProcessNext()
@@ -160,4 +159,11 @@ class ChatUI:
 
 if __name__ == "__main__":
     App = ChatUI()
+
+    # 绑定测试 AI 响应逻辑
+    def MockAI(UserInput, Placeholder):
+        Response = f"[测试AI回复] 您刚才说的是：{UserInput}"
+        App.Root.after(1000, lambda: App.CompleteReply(Response, Placeholder))
+
+    App.OnAIRequested = MockAI
     App.Run()
