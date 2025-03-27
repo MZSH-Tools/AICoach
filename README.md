@@ -1,6 +1,6 @@
-# AICoachDemo
+# AICoach
 
-AICoachDemo 是一个基于本地大语言模型（如 Ollama 的 DeepSeek）构建的 AI 教练 Demo，旨在辅助用户进行科目一考试练习。该项目实现了题目抽取、用户作答、AI 智能反馈、TTS 语音播报等功能，并支持完整模块化、独立运行与验证。
+AICoach 是一个基于本地大语言模型（如 Ollama 的 DeepSeek）构建的 AI 教练 ，旨在辅助用户进行科目一考试练习。该项目实现了题目抽取、用户作答、AI 智能反馈、TTS 语音播报等功能，并支持完整模块化、独立运行与验证。
 
 ---
 

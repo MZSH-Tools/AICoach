@@ -1,0 +1,12 @@
+﻿启用语音: true
+启用解析: true
+打乱选项: true
+选项编号: ["1", "2", "3", "4"]
+记录AI未回答问题: true
+允许重复抽题: false
+
+模型地址: http://localhost:11434/api/generate
+模型名称: deepseek-r1:14b
+
+题库路径: Data/QuestionBank.json
+日志路径: Data/UnansweredLog.json
