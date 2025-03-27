@@ -1,5 +1,6 @@
 ﻿import tkinter as tk
 from tkinter import messagebox
+from queue import Queue
 
 class ChatUI:
     def __init__(self):
@@ -9,6 +10,12 @@ class ChatUI:
         self.Root.minsize(400, 500)
         self.InitGeometry(960, 700)
         self.OnUserInput = None
+
+        # 配色主题
+        self.UserBubbleColor = "#d4edda"
+        self.BotBubbleColor = "#e0e0e0"
+        self.UserAvatarColor = "#a2d5ac"
+        self.BotAvatarColor = "#bbb"
 
         # 聊天区域（滚动）
         self.Canvas = tk.Canvas(self.Root, bg="white", highlightthickness=0)
@@ -48,6 +55,11 @@ class ChatUI:
         self.InputText.bind("<Return>", self.OnEnter)
         self.InputText.bind("<Shift-Return>", self.OnShiftEnter)
 
+        # AI 回复排队机制
+        self.InputQueue = Queue()
+        self.Processing = False
+        self.Placeholders = []
+
     def InitGeometry(self, Width, Height):
         ScreenWidth = self.Root.winfo_screenwidth()
         ScreenHeight = self.Root.winfo_screenheight()
@@ -67,15 +79,14 @@ class ChatUI:
         Container = tk.Frame(self.ChatFrame, bg="white")
         Container.grid(row=self.MsgIndex, column=0, sticky="w", padx=10, pady=5)
 
-        # 使用一个Frame包裹头像
         AvatarFrame = tk.Frame(Container, bg="white", width=40, height=40)
         AvatarFrame.grid(row=0, column=0, sticky="nw")
 
-        AvatarColor = "#a2d5ac" if sender == "user" else "#bbb"
+        AvatarColor = self.UserAvatarColor if sender == "user" else self.BotAvatarColor
         AvatarCanvas = self.CreateColorAvatar(AvatarColor)
         AvatarCanvas.pack(in_=AvatarFrame)
 
-        BubbleColor = "#d4edda" if sender == "user" else "#e0e0e0"
+        BubbleColor = self.UserBubbleColor if sender == "user" else self.BotBubbleColor
         TextLabel = tk.Label(
             Container,
             text=message,
@@ -91,6 +102,16 @@ class ChatUI:
 
         self.Canvas.update_idletasks()
         self.Canvas.yview_moveto(1.0)
+        return Container
+
+    def InsertPlaceholder(self, Text="已加入队列，等待中..."):
+        Placeholder = self.InsertMessage("ai", Text)
+        self.Placeholders.append(Placeholder)
+        return Placeholder
+
+    def SetInputEnabled(self, Enabled: bool):
+        State = tk.NORMAL if Enabled else tk.DISABLED
+        self.InputText.config(state=State)
 
     def OnEnter(self, event):
         UserInput = self.InputText.get("1.0", tk.END).strip()
@@ -98,18 +119,40 @@ class ChatUI:
             messagebox.showwarning("提示", "请输入内容")
             return "break"
 
-        self.InsertMessage("user", UserInput)
-
-        if self.OnUserInput is not None:
-            self.OnUserInput(UserInput)
-
         self.InputText.delete("1.0", tk.END)
+        self.InsertMessage("user", UserInput)
+        Placeholder = self.InsertPlaceholder("已加入队列，等待中...")
+
+        self.InputQueue.put((UserInput, Placeholder))
+        self.TryProcessNext()
 
         return "break"
 
     def OnShiftEnter(self, event):
         self.InputText.insert(tk.INSERT, "\n")
         return "break"
+
+    def TryProcessNext(self):
+        if self.Processing or self.InputQueue.empty():
+            return
+
+        self.Processing = True
+        UserInput, Placeholder = self.InputQueue.get()
+        self.UpdatePlaceholder(Placeholder, "AI 教练正在思考中...")
+
+        self.Root.after(2000, lambda: self.CompleteReply(UserInput, Placeholder))
+
+    def UpdatePlaceholder(self, PlaceholderContainer, NewText):
+        for widget in PlaceholderContainer.winfo_children():
+            if isinstance(widget, tk.Label):
+                widget.config(text=NewText)
+
+    def CompleteReply(self, UserInput, Placeholder):
+        # 模拟 AI 回复内容
+        AIResponse = f"AI 教练解析：这是对「{UserInput}」的解答示例。"
+        self.UpdatePlaceholder(Placeholder, AIResponse)
+        self.Processing = False
+        self.TryProcessNext()
 
     def Run(self):
         self.Root.mainloop()
