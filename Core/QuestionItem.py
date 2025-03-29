@@ -1,7 +1,8 @@
-﻿import random
-import os
+﻿import os
+import random
 
-# 面向一“题”，代表一条题目的全部数据和与之相关的逻辑。
+# _QuestionItem 类用于封装一道题目的所有信息和功能，
+# 包括题干、选项、正确答案、图片路径解析，以及 UI 显示所需的格式化消息结构。
 class _QuestionItem:
     def __init__(self, RawData: dict, RootPath: str, OptionLabels: list[str]):
         self.ID = RawData.get("题目ID")
@@ -16,6 +17,7 @@ class _QuestionItem:
             Option["真实图片路径"] = self.ResolveImagePath(Option.get("图片"), RootPath)
         self.CorrectAnswers = [Option["文本"] for Option in self.OriginalOptions if Option.get("是否正确")]
         self.Explanation = RawData.get("解析库", [])
+        self.MessageBlocks = self.GenerateMessageBlocks()
 
     def ResolveImagePath(self, RelativePath, RootPath):
         if not RelativePath:
@@ -23,16 +25,16 @@ class _QuestionItem:
         AbsolutePath = os.path.join(RootPath, RelativePath)
         return AbsolutePath if os.path.exists(AbsolutePath) else "[图片未找到]"
 
-    def GetFormattedText(self):
-        Intro = f"这是一道{self.Type}题，请回答你觉得正确的选项。"
-        Text = f"{Intro}\n题目：{self.Stem}"
+    def GenerateMessageBlocks(self) -> list[str]:
+        blocks = []
+        blocks.append(f"[TEXT] 这是一道{self.Type}题，请选择你认为正确的答案。")
+        blocks.append(f"[TEXT] 题目：{self.Stem}")
         if self.Image and self.Image != "[图片未找到]":
-            Text += f"\n[显示图片]"
-        Text += "\n选项："
-        for Index, Option in enumerate(self.ShuffledOptions):
-            Label = self.OptionLabels[Index] if Index < len(self.OptionLabels) else f"选项{Index+1}"
-            Text += f"\n{Label}: {Option.get('文本', '')}"
-            ImgPath = Option.get("真实图片路径")
-            if ImgPath and ImgPath != "[图片未找到]":
-                Text += f"\n[显示图片]"
-        return Text
+            blocks.append(f"[IMAGE] {self.Image}")
+        for i, option in enumerate(self.ShuffledOptions):
+            label = self.OptionLabels[i]
+            blocks.append(f"[TEXT] {label}: {option.get('文本', '')}")
+            img_path = option.get("真实图片路径")
+            if img_path and img_path != "[图片未找到]":
+                blocks.append(f"[IMAGE] {img_path}")
+        return blocks

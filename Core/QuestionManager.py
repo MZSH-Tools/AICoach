@@ -5,7 +5,7 @@ import random
 import os
 from Config.ConfigManager import ConfigManager
 
-# 面向“题库”，是题目池子的管理者，负责加载、抽题、配置、切换题目。
+# QuestionManager 类负责加载题库、抽取题目、管理当前题目，并统一提供外部访问接口，是题库模块的核心调度器。
 class QuestionManager:
     _Instance = None
 
@@ -77,12 +77,14 @@ class QuestionManager:
     def GetCurQuestion(self):
         return self.CurrentQuestion
 
+
 if __name__ == "__main__":
     Manager = QuestionManager()
     Sample = Manager.GetRandomQuestion()
     if Sample:
         print("✅ 抽取到一题：")
-        print(Sample.GetFormattedText())
+        for Block in Sample.MessageBlocks:
+            print(Block)
         print("正确答案:", Sample.CorrectAnswers)
     else:
         print("❌ 没有题目可用")
