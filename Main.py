@@ -1,5 +1,5 @@
 ﻿from Core.QuestionManager import QuestionManager
-from Core.ChatUI import ChatUI
+from UI.ChatUI import ChatUI
 
 if __name__ == "__main__":
     UI = ChatUI()
