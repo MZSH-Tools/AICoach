@@ -1,9 +1,9 @@
-﻿from Core.QuestionItem import _QuestionItem
+﻿from Source.Core.QuestionItem import _QuestionItem
 
 import json
 import random
 import os
-from Config.ConfigManager import ConfigManager
+from Source.Config.ConfigManager import ConfigManager
 
 # QuestionManager 类负责加载题库、抽取题目、管理当前题目，并统一提供外部访问接口，是题库模块的核心调度器。
 class QuestionManager:
