@@ -172,13 +172,6 @@ class ChatUI:
     def DisplayMessageBlocks(self, Blocks):
         Texts = []
         Images = []
-        for Block in Blocks:
-            if Block.startswith("[TEXT]"):
-                Text = Block.replace("[TEXT]", "").strip()
-                Texts.append(Text)
-            elif Block.startswith("[IMAGE]"):
-                Path = Block.replace("[IMAGE]", "").strip()
-                Images.append(Path)
 
         self.MsgIndex += 1
         Container = tk.Frame(self.ChatFrame, bg="white")
@@ -196,22 +189,23 @@ class ChatUI:
         BubbleFrame = tk.Frame(Container, bg=BubbleColor)
         BubbleFrame.grid(row=0, column=1, sticky="w", padx=(6, 0))
 
-        for Text in Texts:
-            Label = tk.Label(BubbleFrame, text=Text, bg=BubbleColor, fg="black", wraplength=500, justify="left",
-                             anchor="w", font=("微软雅黑", 10), padx=10, pady=4)
-            Label.pack(anchor="w")
-
-        for Path in Images:
-            try:
-                ImageObj = Image.open(Path).convert("RGB").resize((300, 200))
-                Photo = ImageTk.PhotoImage(ImageObj)
-                self.ImageRefs.append(Photo)
-                Label = tk.Label(BubbleFrame, image=Photo, bg=BubbleColor)
-                Label.image = Photo
-                Label.pack(anchor="w", pady=5)
-            except Exception as Error:
-                print(f"[图片加载失败] {Path}: {Error}")
-
+        for Block in Blocks:
+            if Block.startswith("[TEXT]"):
+                Text = Block.replace("[TEXT]", "").strip()
+                Label = tk.Label(BubbleFrame, text=Text, bg=BubbleColor, fg="black", wraplength=500, justify="left",
+                                 anchor="w", font=("微软雅黑", 10), padx=10, pady=4)
+                Label.pack(anchor="w")
+            elif Block.startswith("[IMAGE]"):
+                Path = Block.replace("[IMAGE]", "").strip()
+                try:
+                    ImageObj = Image.open(Path).convert("RGB").resize((300, 200))
+                    Photo = ImageTk.PhotoImage(ImageObj)
+                    self.ImageRefs.append(Photo)
+                    Label = tk.Label(BubbleFrame, image=Photo, bg=BubbleColor)
+                    Label.image = Photo
+                    Label.pack(anchor="w", pady=5)
+                except Exception as Error:
+                    print(f"[图片加载失败] {Path}: {Error}")
 
 if __name__ == "__main__":
     App = ChatUI()

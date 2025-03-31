@@ -21,14 +21,14 @@ class QuestionManager:
         self._Initialized = True
 
         self.Config = ConfigManager()
-        RootPath = os.path.dirname(os.path.dirname(__file__))
+        self.ProjectRoot = os.path.dirname(os.path.dirname(__file__))
         RelativePath = self.Config.GetString("题库路径", "Data/QuestionBank.json")
-        self.QuestionPath = os.path.join(RootPath, RelativePath)
-        self.ProjectRoot = RootPath
+        self.QuestionPath = os.path.join(self.ProjectRoot, RelativePath)
         self.AllQuestions = []
         self.QuestionPool = []
         self.OptionLabels = self.Config.ConfigData.get("选项编号", ["A", "B", "C", "D", "E", "F"])
         self.CurrentQuestion = None
+        self.Explanation = []
         self.LoadQuestions()
 
     def LoadQuestions(self):
@@ -41,10 +41,19 @@ class QuestionManager:
                 Data = json.load(File)
                 self.AllQuestions = Data.get("题库", [])
                 self.QuestionPool = self.AllQuestions[:]
+                self.Explanation = Data.get("公共解析库", [])
             except Exception as Error:
                 print(f"[错误] 加载题库失败：{str(Error)}")
 
-    def GetRandomQuestion(self):
+    def ShufflePool(self):
+        if self.QuestionPool:
+            random.shuffle(self.QuestionPool)
+
+    def ResetPool(self):
+        self.QuestionPool = self.AllQuestions[:]
+
+    # 切换下一个随机题目
+    def NextRandomQuestion(self)->bool():
         ReloadIfEmpty = self.Config.GetBool("题库为空时重新加载", True)
         ShuffleEachTime = self.Config.GetBool("每次抽题打乱顺序", True)
         RemoveQuestion = self.Config.GetBool("在题库中移除已抽题目", True)
@@ -55,36 +64,43 @@ class QuestionManager:
         if ShuffleEachTime:
             self.ShufflePool()
 
-        if self.QuestionPool:
-            if RemoveQuestion:
-                QuestionData = self.QuestionPool.pop(0)
-            else:
-                QuestionData = self.QuestionPool[0]
-            self.CurrentQuestion = _QuestionItem(QuestionData, self.ProjectRoot, self.OptionLabels)
-        else:
+        if not self.QuestionPool:
             print("[提示] 所有题目已完成，无题可抽。")
             self.CurrentQuestion = None
+            return False
 
-        return self.CurrentQuestion
+        if RemoveQuestion:
+            QuestionData = self.QuestionPool.pop(0)
+        else:
+            QuestionData = self.QuestionPool[0]
 
-    def ShufflePool(self):
-        if self.QuestionPool:
-            random.shuffle(self.QuestionPool)
+        self.CurrentQuestion = _QuestionItem(QuestionData, self.ProjectRoot, self.OptionLabels)
+        return True
 
-    def ResetPool(self):
-        self.QuestionPool = self.AllQuestions[:]
+    def GetMessageBlocks(self) -> list[str]:
+        if self.CurrentQuestion:
+            return self.CurrentQuestion.MessageBlocks
+        else:
+            return []
 
-    def GetCurQuestion(self):
-        return self.CurrentQuestion
+    def GetExplanation(self):
+        if self.CurrentQuestion:
+            return self.CurrentQuestion.Explanation + self.Explanation
+        else:
+            return self.Explanation
 
+    def GetCorrectAnswers(self):
+        if self.CurrentQuestion:
+            return self.CurrentQuestion.CorrectAnswers
+        else:
+            return []
 
 if __name__ == "__main__":
     Manager = QuestionManager()
-    Sample = Manager.GetRandomQuestion()
-    if Sample:
+    if Manager.NextRandomQuestion():
         print("✅ 抽取到一题：")
-        for Block in Sample.MessageBlocks:
+        for Block in Manager.GetMessageBlocks():
             print(Block)
-        print("正确答案:", Sample.CorrectAnswers)
+        print("正确答案:", Manager.GetCorrectAnswers())
     else:
         print("❌ 没有题目可用")

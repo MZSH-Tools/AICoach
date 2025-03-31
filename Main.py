@@ -7,9 +7,8 @@ if __name__ == "__main__":
 
     def OnAIRequested(UserInput, Placeholder):
         # 暂时只从题库中抽一题显示，不处理回答逻辑
-        Question = Manager.GetRandomQuestion()
-        if Question:
-            UI.DisplayMessageBlocks(Question.MessageBlocks)
+        if Manager.NextRandomQuestion():
+            UI.DisplayMessageBlocks(Manager.GetMessageBlocks())
         else:
             UI.InsertMessage("ai", "❌ 当前题库中没有题目可用。")
 
