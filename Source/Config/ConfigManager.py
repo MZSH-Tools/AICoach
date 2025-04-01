@@ -11,7 +11,7 @@ class ConfigManager:
 
     def __init__(self):
         self.ConfigData = {}
-        self.ConfigPath = os.path.join(os.path.dirname(__file__), "Settings.yaml")
+        self.ConfigPath = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")), "Config/Settings.yaml")
         self.LoadConfig()
 
     def LoadConfig(self):

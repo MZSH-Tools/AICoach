@@ -21,7 +21,7 @@ class QuestionManager:
         self._Initialized = True
 
         self.Config = ConfigManager()
-        self.ProjectRoot = os.path.dirname(os.path.dirname(__file__))
+        self.ProjectRoot = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
         RelativePath = self.Config.GetString("题库路径", "Data/QuestionBank.json")
         self.QuestionPath = os.path.join(self.ProjectRoot, RelativePath)
         self.AllQuestions = []

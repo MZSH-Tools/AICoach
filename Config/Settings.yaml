@@ -5,8 +5,15 @@
 记录AI未回答问题: true
 允许重复抽题: false
 
+# 模型
 模型地址: http://localhost:11434/api/generate
 模型名称: deepseek-r1:14b
+排除思考: true
 
 题库路径: Data/QuestionBank.json
 日志路径: Data/UnansweredLog.json
+
+# UI
+欢迎语:
+  - "[TEXT] 欢迎使用 AI 教练 Demo！"
+  - "[TEXT] 输入任意内容并回车，我将为您抽题。"

@@ -1,69 +1,65 @@
 # AICoach 项目总览
 
-AICoach 是一个基于本地大语言模型（如 Ollama 的 DeepSeek）构建的 AI 教练 Demo，用于辅助用户进行「科目一」驾驶考试题目的练习与讲解。  
-项目以模块化结构开发，支持图形化对话界面、题库抽取、AI 智能反馈、语音播报等功能，旨在打造一个沉浸式、拟人化的练习体验。
+AICoach 是一个基于本地大语言模型（如 Ollama + DeepSeek）构建的 AI 教练 Demo，用于辅助用户进行「科目一」考试的练习与反馈。  
+项目采用模块化架构，配合图形 UI 界面、题库系统、AI 模型和语音播报功能，提供沉浸式、交互式的学习体验。
 
 ---
 
-## ✅ 当前功能进展
+## ✅ 已实现功能模块
 
-已完成模块如下：
+### 📚 题库模块（Core/QuestionManager + QuestionItem）
+- 支持从 JSON 题库加载题目
+- 实现题目随机抽取、选项乱序
+- 支持公共与个别解析的整合
 
-- ✅ **图形化 UI 界面（ChatUI）**
-  - 类微信风格对话框，支持用户输入、AI 回复、头像气泡展示、滚动区域
-- ✅ **题库管理（QuestionManager）**
-  - 支持从 JSON 加载题库、随机抽题、乱序选项、动态配置
-  - 兼容公共解析与自定义题目解析
-- ✅ **题目封装类（QuestionItem）**
-  - 用于将单个题目包装成对象，便于统一处理选项、答案、解析等信息
-- ✅ **配置系统（ConfigManager）**
-  - 使用 YAML 管理开关配置，如是否开启语音、是否乱序等
+### 🧠 AI 模型交互（Core/AIInteraction）
+- 使用 Ollama 本地模型（DeepSeek）进行反馈生成
+- 支持流式输出，逐字传送给 UI
+- 自动排除 AI 的“思考”片段，如 `<think>` 标签等
 
----
+### 🖥️ 图形界面（UI/ChatUI）
+- 类微信聊天界面，支持气泡显示、用户输入、滚动查看
+- 可配合 AI 流式反馈实时刷新显示内容
 
-## 🚧 计划开发中的模块
-
-- 🧠 **AI 模型交互模块（AIInteraction）**
-  - 负责构建 Prompt、调用本地 LLM 模型（如 DeepSeek）
-- 🔊 **语音播报模块（TTSSpeaker）**
-  - 使用本地 TTS 工具（如 ChatTTS）播报 AI 回复内容
-- 🧾 **日志记录模块（Logger）**
-  - 记录 AI 无法回答的问题，便于后续复训或改进
+### ⚙️ 配置管理（Config/ConfigManager）
+- 使用 YAML 格式读取模型地址、名称、开关项等
+- 配置是否启用语音、是否记录 AI 失败回答、选项标记等
 
 ---
 
-## 📁 项目结构（PascalCase 命名规范）
+## 📁 项目结构概览
 
 ```
 AICoachDemo/
-├── Main.py                      # 主程序入口
+├── Main.py                      # 程序入口
+├── Source/
+│   ├── Core/                    # 题库、AI 模块
+│   ├── UI/                      # 图形界面（ChatUI）
+│   └── Config/                  # 配置读取
 ├── Config/
-│   ├── ConfigManager.py         # 配置读取模块
-│   └── Settings.yaml            # YAML 配置文件
+│   └── Settings.yaml            # 配置项（模型、路径、开关等）
 ├── Data/
-│   ├── QuestionBank.json        # 科目一题库
-│   └── UnansweredLog.json       # AI 无法回答的问题记录
-├── Core/
-│   ├── QuestionManager.py       # 题目调度模块 ✅
-│   └── QuestionItem.py          # 单题包装类 ✅
-├── UI/
-│   └── ChatUI.py                # 图形界面 ✅
-├── Utils/
-│   └── Logger.py                # 日志记录（待开发）
-└── Assets/
-    └── Images/                  # 静态资源，如头像、装饰图
+│   └── QuestionBank.json        # 科目一题库数据
+├── Assets/
+│   └── Images/                  # 图片等资源
 ```
 
 ---
 
-## 🧠 项目愿景
+## 🚧 后续计划
 
-AICoach 项目致力于将传统题库练习转化为 “沉浸式教学对话”，未来将支持：
-
-- 多模型接入（如 DeepSeek、Yi、ChatGLM 等）
-- 语音识别与语音回答（端到端体验）
-- 错题本生成、考试模式切换、专项训练等
+- ✅ TTS 模块接入（如 ChatTTS）用于语音播报 AI 回复
+- ✅ 日志模块记录无法应答的问题
+- ✅ 模型接入支持切换（如 Yi、ChatGLM 等）
+- ✅ 自动生成错题本、专项练习等拓展功能
 
 ---
 
-如需开发、测试或贡献代码，推荐优先从 `Main.py` 启动入口开始，逐步替换未完成模块。
+## 🧠 项目目标
+
+通过本地大模型 + UI 聊天交互，打造一个真实教练般的学习体验平台，让用户更高效掌握考试知识点。
+
+如需启动，请运行：
+```bash
+python Main.py
+```
