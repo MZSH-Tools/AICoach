@@ -1,19 +1,23 @@
 ﻿启用语音: true
-启用解析: true
+
+# 题库
+题库路径: Data/QuestionBank.json
+题库为空时重新加载: true
+每次抽题打乱顺序: true
+在题库中移除已抽题目: true
 打乱选项: true
 选项编号: ["1", "2", "3", "4"]
-记录AI未回答问题: true
-允许重复抽题: false
+正确解析: false
+错误解析: true
 
 # 模型
 模型地址: http://localhost:11434/api/generate
 模型名称: deepseek-r1:14b
 排除思考: true
 
-题库路径: Data/QuestionBank.json
-日志路径: Data/UnansweredLog.json
-
 # UI
 欢迎语:
   - "[TEXT] 欢迎使用 AI 教练 Demo！"
   - "[TEXT] 输入任意内容并回车，我将为您抽题。"
+
+日志路径: Data/UnansweredLog.json

@@ -26,7 +26,6 @@ class QuestionManager:
         self.QuestionPath = os.path.join(self.ProjectRoot, RelativePath)
         self.AllQuestions = []
         self.QuestionPool = []
-        self.OptionLabels = self.Config.ConfigData.get("选项编号", ["A", "B", "C", "D", "E", "F"])
         self.CurrentQuestion = None
         self.Explanation = []
         self.LoadQuestions()
@@ -74,7 +73,11 @@ class QuestionManager:
         else:
             QuestionData = self.QuestionPool[0]
 
-        self.CurrentQuestion = _QuestionItem(QuestionData, self.ProjectRoot, self.OptionLabels)
+        self.CurrentQuestion = _QuestionItem(
+            QuestionData,
+            self.ProjectRoot,
+            self.Config.GetBool("打乱选项", True),
+            self.Config.ConfigData.get("选项编号", ["A", "B", "C", "D", "E", "F"]))
         return True
 
     def GetMessageBlocks(self) -> list[str]:
@@ -89,11 +92,35 @@ class QuestionManager:
         else:
             return self.Explanation
 
-    def GetCorrectAnswers(self):
-        if self.CurrentQuestion:
-            return self.CurrentQuestion.CorrectAnswers
-        else:
+    def CheckAnswer(self, Answer):
+        if self.CurrentQuestion is None:
             return []
+        StrList = []
+        MaxChar = 1
+        if self.CurrentQuestion.Type == "多选":
+            MaxChar = len(self.CurrentQuestion.Options)
+
+        if len(Answer) > MaxChar:
+            StrList.append(f"[TEXT]字符数过多超过题目限制，最多支持{MaxChar}个字符，请重新填写")
+            return StrList
+
+        for Char in Answer:
+            StrList.append("")
+            if Char not in  self.CurrentQuestion.OptionLabels:
+                StrList[-1] += f"[TEXT]字符'{Char}'不属于选项{self.CurrentQuestion.OptionLabels}, 请重新输入"
+                return StrList
+            StrList[-1] += f"[TEXT]选项{Char}:"
+            CharIndex = self.CurrentQuestion.OptionLabels.index(Char)
+            Explanation = self.CurrentQuestion.Options[CharIndex].get("解析", "")
+            if Char in self.CurrentQuestion.CorrectAnswers:
+                StrList[-1] += "正确！"
+                if self.Config.GetBool("正确解析", False):
+                    StrList.append(f"[TEXT]解析:{Explanation}")
+            else:
+                StrList[-1] += "错误！"
+                if self.Config.GetBool("错误解析", True):
+                    StrList.append(f"[TEXT]解析:{Explanation}")
+        return StrList
 
 if __name__ == "__main__":
     Manager = QuestionManager()
@@ -101,6 +128,8 @@ if __name__ == "__main__":
         print("✅ 抽取到一题：")
         for Block in Manager.GetMessageBlocks():
             print(Block)
-        print("正确答案:", Manager.GetCorrectAnswers())
+        print("正确答案:", Manager.CurrentQuestion.CorrectAnswers)
+        for Str in Manager.CheckAnswer("1"):
+            print(Str)
     else:
         print("❌ 没有题目可用")

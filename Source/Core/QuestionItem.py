@@ -4,14 +4,15 @@ import random
 # _QuestionItem 类用于封装一道题目的所有信息和功能，
 # 包括题干、选项、正确答案、图片路径解析，以及 UI 显示所需的格式化消息结构。
 class _QuestionItem:
-    def __init__(self, RawData: dict, RootPath: str, OptionLabels: list[str]):
+    def __init__(self, RawData: dict, RootPath: str, RandomOption: bool, OptionLabels: list[str]):
         self.ID = RawData.get("题目ID")
         self.Type = RawData.get("题目类型", "单选")
         self.Stem = RawData.get("题目", {}).get("文本", "")
         self.Image = self.ResolveImagePath(RawData.get("题目", {}).get("图片"), RootPath)
         self.Options = RawData.get("选项", [])
-        self.OptionLabels = OptionLabels
-        random.shuffle(self.Options)
+        self.OptionLabels = OptionLabels[:len(self.Options)]
+        if RandomOption:
+            random.shuffle(self.Options)
         for Option in self.Options:
             Option["真实图片路径"] = self.ResolveImagePath(Option.get("图片"), RootPath)
         self.CorrectAnswers = [OptionLabels[i] for i, Option in enumerate(self.Options)  if Option.get("是否正确")]
