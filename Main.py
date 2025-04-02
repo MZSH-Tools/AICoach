@@ -3,6 +3,7 @@ from Source.UI.ChatUI import ChatUI
 from Source.Core.QuestionManager import QuestionManager
 from Source.Core.AIInteraction import AIInteraction
 import threading
+import re
 
 Mode = "待机"
 
@@ -40,7 +41,7 @@ def OnAIRequested(UserInput, Placeholder):
                     UI.AppendTokenToReply(Token, Placeholder)
 
                 def OnComplete(FinalText):
-                    match FinalText:
+                    match re.sub(r"\s+", "",  FinalText):
                         case "下一道题":
                             UI.ClearPlaceholder(Placeholder)
                             TryNextQuestion(Placeholder)
@@ -48,8 +49,6 @@ def OnAIRequested(UserInput, Placeholder):
                             UI.ClearPlaceholder(Placeholder)
                             UI.AppendTextToReply("抱歉无法解析，改问题将上传至工作人员后台，请问你还有其他问题吗", Placeholder)
                     UI.CompleteReply()
-                    print(FinalText)
-                    print(len(FinalText))
 
                 AI.QueryStream(Prompt, OnTokenCallback=OnToken, OnComplete=OnComplete)
 
