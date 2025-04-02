@@ -19,7 +19,7 @@ class AIInteraction:
         PromptText += f"解析库是{Explanations}。"
         return PromptText
 
-    def QueryStream(self, PromptText: str, OnTokenCallback=None) -> str:
+    def QueryStream(self, PromptText: str, OnTokenCallback=None, OnComplete=None) -> str:
         Payload = {
             "model": self.ModelName,
             "prompt": PromptText,
@@ -44,7 +44,10 @@ class AIInteraction:
                         continue
                     if OnTokenCallback:
                         OnTokenCallback(Token)
+                    Done = JsonLine.get("done", False)
                     CollectedResponse += Token
+                    if Done and OnComplete:
+                        OnComplete(CollectedResponse)
                 except Exception as Error:
                     continue
         except Exception as Error:

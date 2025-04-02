@@ -33,6 +33,9 @@ class ConfigManager:
     def GetFloat(self, Key, Default=0.0):
         return float(self.ConfigData.get(Key, Default))
 
+    def GetList(self, Key, Default=None):
+        value = self.ConfigData.get(Key, Default)
+        return value if isinstance(value, list) else (Default if Default is not None else [])
 
 if __name__ == "__main__":
     Config = ConfigManager()

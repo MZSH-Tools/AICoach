@@ -1,10 +1,9 @@
 ﻿import tkinter as tk
 from tkinter import messagebox
 from queue import Queue
-from PIL import Image, ImageTk  # 添加 PIL 用于显示图片
+from PIL import Image, ImageTk
 
 
-# ChatUI 类负责构建聊天界面，显示题目内容、接收用户输入，并触发 AI 回调，是用户交互的核心窗口。
 class ChatUI:
     def __init__(self):
         self.Root = tk.Tk()
@@ -12,7 +11,6 @@ class ChatUI:
         self.Root.configure(bg="white")
         self.Root.minsize(400, 500)
 
-        # 使用垂直分区布局，TopFrame + BottomFrame
         self.MainFrame = tk.Frame(self.Root, bg="white")
         self.MainFrame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.InitGeometry(960, 700)
@@ -23,7 +21,6 @@ class ChatUI:
         self.UserAvatarColor = "#a2d5ac"
         self.BotAvatarColor = "#bbb"
 
-        # 创建一个上层 Frame 分隔聊天区和输入区
         self.TopFrame = tk.Frame(self.MainFrame, bg="white")
         self.TopFrame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -49,14 +46,14 @@ class ChatUI:
         self.BottomFrame = tk.Frame(self.MainFrame, bg="white")
         self.BottomFrame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
 
-        self.HintLabel = tk.Label(self.BottomFrame, text="请输入：", bg="white", anchor="w", font=("微软雅黑", 10))
+        self.HintLabel = tk.Label(self.BottomFrame, text="请输入：", bg="white", anchor="w", font=("微软黑", 10))
         self.HintLabel.pack(anchor="w")
 
         self.InputText = tk.Text(
             self.BottomFrame,
             height=4,
             wrap="word",
-            font=("微软雅黑", 10),
+            font=("微软黑", 10),
             bd=1,
             relief="solid"
         )
@@ -108,17 +105,16 @@ class ChatUI:
             justify="left",
             padx=10,
             pady=10,
-            font=("微软雅黑", 10),
+            font=("微软黑", 10),
         )
         TextLabel.grid(row=0, column=1, sticky="w", padx=(6, 0))
 
-        # 移除无效语法或替换为滚动到底部（可选）
         self.Root.after(10, lambda: self.Canvas.yview_moveto(1.0))
-
-        return Container
+        return TextLabel
 
     def InsertPlaceholder(self, text="已加入队列，等待中..."):
         Placeholder = self.InsertMessage("ai", text)
+        Placeholder._initial_text = text
         self.Placeholders.append(Placeholder)
         return Placeholder
 
@@ -135,10 +131,8 @@ class ChatUI:
         self.InputText.delete("1.0", tk.END)
         self.InsertMessage("user", UserInput)
         Placeholder = self.InsertPlaceholder("已加入队列，等待中...")
-
         self.InputQueue.put((UserInput, Placeholder))
         self.TryProcessNext()
-
         return "break"
 
     def OnShiftEnter(self, event):
@@ -151,18 +145,24 @@ class ChatUI:
 
         self.Processing = True
         UserInput, Placeholder = self.InputQueue.get()
-        self.UpdatePlaceholder(Placeholder, "AI 教练正在思考中...")
+
+        # 开始处理才显示“思考中...”
+        Placeholder.config(text="AI 教练正在思考...")
 
         if self.OnAIRequested:
             self.OnAIRequested(UserInput, Placeholder)
 
-    def UpdatePlaceholder(self, PlaceholderContainer, NewText):
-        for widget in PlaceholderContainer.winfo_children():
-            if isinstance(widget, tk.Label):
-                widget.config(text=NewText)
+    def AppendTokenToReply(self, token: str, Placeholder):
+        if not hasattr(Placeholder, "_stream_started"):
+            Placeholder.config(text="")  # 第一次清空
+            Placeholder._stream_started = True
 
-    def CompleteReply(self, AIResponse, Placeholder):
-        self.UpdatePlaceholder(Placeholder, AIResponse)
+        Placeholder.config(text=Placeholder.cget("text") + token)
+        self.Canvas.update_idletasks()
+        self.Canvas.yview_moveto(1.0)
+
+    def CompleteReply(self, final_text: str, placeholder: tk.Label):
+        placeholder.config(text=final_text)
         self.Processing = False
         self.TryProcessNext()
 
@@ -170,9 +170,6 @@ class ChatUI:
         self.Root.mainloop()
 
     def DisplayMessageBlocks(self, Blocks):
-        Texts = []
-        Images = []
-
         self.MsgIndex += 1
         Container = tk.Frame(self.ChatFrame, bg="white")
         Container.grid(row=self.MsgIndex, column=0, sticky="w", padx=10, pady=5)
@@ -210,11 +207,18 @@ class ChatUI:
 if __name__ == "__main__":
     App = ChatUI()
 
-
     def MockAI(UserInput, Placeholder):
-        Response = f"[TEXT] 您刚才说的是：{UserInput}"
-        App.Root.after(1000, lambda: App.CompleteReply(Response, Placeholder))
+        import time
+        from threading import Thread
 
+        def simulate_stream():
+            time.sleep(0.3)
+            for token in "这是一个模拟的 AI 流式回复。":
+                time.sleep(0.1)
+                App.AppendTokenToReply(token, Placeholder)
+            App.CompleteReply("这是一个模拟的 AI 流式回复。", Placeholder)
+
+        Thread(target=simulate_stream).start()
 
     App.OnAIRequested = MockAI
     App.Run()
