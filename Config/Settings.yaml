@@ -1,23 +1,27 @@
-﻿启用语音: true
+﻿# ============================
+# 📘 AICoach 设置文件（Settings.yaml）
+# ============================
 
-# 题库
-题库路径: Data/QuestionBank.json
-题库为空时重新加载: true
-每次抽题打乱顺序: true
-在题库中移除已抽题目: true
-打乱选项: true
-选项编号: ["1", "2", "3", "4"]
-正确解析: false
-错误解析: true
+# === 🧠 AI 模型配置 ===
+模型地址: "http://localhost:11434/api/generate"     # Ollama API 接口地址
+模型名称: "deepseek-r1:14b"                          # 模型名称（例如 deepseek-r1:14b）
+排除思考: true                                       # 是否排除 <think> 等 AI 思考片段
 
-# 模型
-模型地址: http://localhost:11434/api/generate
-模型名称: deepseek-r1:14b
-排除思考: true
+# === 📚 题库设置 ===
+题库路径: "Data/QuestionBank.json"                  # 题库 JSON 文件路径
+题库为空时重新加载: true                            # 当题库为空时，是否重新加载原题库
+每次抽题打乱顺序: true                              # 是否打乱抽题顺序
+在题库中移除已抽题目: true                          # 是否从题库中移除已抽题目
+打乱选项: true                                      # 是否打乱题目选项顺序
+选项编号: ["1", "2", "3", "4"]                       # 选项标记方式
+正确解析: false                                     # 是否显示正确解析
+错误解析: true                                      # 是否显示错误解析
 
-# UI
+# === 🖥️ UI 配置 ===
 欢迎语:
   - "[TEXT] 欢迎使用 AI 教练 Demo！"
-  - "[TEXT] 输入任意内容并回车，我将为您抽题。"
+  - "[TEXT] 输入任意内容并回车，我将为您抽题。"      # 启动欢迎语，用于 UI 初始聊天展示
+启用语音: true                                       # 是否启用语音播报功能（需支持 TTS）
 
-日志路径: Data/UnansweredLog.json
+# === 📁 日志配置 ===
+日志路径: "Data/UnansweredLog.json"                 # 记录 AI 无回答内容的日志路径
