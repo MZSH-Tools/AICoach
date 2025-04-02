@@ -3,8 +3,6 @@ import tkinter as tk
 from tkinter import messagebox
 from queue import Queue
 from PIL import Image, ImageTk
-import os
-
 
 class ChatUI:
     def __init__(self):
@@ -67,6 +65,7 @@ class ChatUI:
         self.InputQueue = Queue()
         self.Processing = False
         self.CurrentReplyFrame = None
+        self.IsThinking = False
 
     def InitGeometry(self, Width, Height):
         ScreenWidth = self.Root.winfo_screenwidth()
@@ -125,15 +124,17 @@ class ChatUI:
         Placeholder._token_label = None
 
     def AppendTextToReply(self, Text, Placeholder):
-        if not hasattr(Placeholder, "_stream_started"):
+        if self.IsThinking:
             self.ClearPlaceholder(Placeholder)
+            self.IsThinking = False
         Label = tk.Label(Placeholder, text=Text, bg=Placeholder["bg"], fg="black",
                          wraplength=500, justify="left", font=("微软雅黑", 10), padx=10, pady=4, anchor="w")
         Label.pack(anchor="w")
 
     def AppendImageToReply(self, Path, Placeholder):
-        if not hasattr(Placeholder, "_stream_started"):
+        if self.IsThinking:
             self.ClearPlaceholder(Placeholder)
+            self.IsThinking = False
         try:
             ImageObj = Image.open(Path).convert("RGB").resize((300, 200))
             Photo = ImageTk.PhotoImage(ImageObj)
@@ -145,8 +146,9 @@ class ChatUI:
             print(f"[图片加载失败] {Path}: {Error}")
 
     def AppendTokenToReply(self, Token, Placeholder):
-        if not hasattr(Placeholder, "_stream_started"):
+        if self.IsThinking:
             self.ClearPlaceholder(Placeholder)
+            self.IsThinking = False
 
         if not hasattr(Placeholder, "_token_label") or Placeholder._token_label is None:
             Label = tk.Label(
@@ -171,8 +173,9 @@ class ChatUI:
         self.Canvas.yview_moveto(1.0)
 
     def AppendMessageReply(self, Blocks, Placeholder):
-        if not hasattr(Placeholder, "_stream_started"):
+        if self.IsThinking:
             self.ClearPlaceholder(Placeholder)
+            self.IsThinking = False
 
         for Block in Blocks:
             if Block.startswith("[TEXT]"):
@@ -216,6 +219,7 @@ class ChatUI:
 
         self.ClearPlaceholder(Placeholder)  # 清空“等待中...”
         self.AppendTextToReply("AI 教练正在思考...", Placeholder)
+        self.IsThinking = True
 
         if self.OnAIRequested:
             self.OnAIRequested(UserInput, Placeholder)
