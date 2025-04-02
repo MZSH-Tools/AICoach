@@ -85,10 +85,17 @@ class ChatUI:
         self.ImageRefs.append(Photo)
         return Photo
 
-    def InsertMessage(self, Sender, Message):
-        Container = self.BeginReplyBlock(Sender)
-        self.AppendTextToReplyBlock(Message, Container)
-        return Container
+    def InsertMessage(self, Sender, Message = ""):
+        Reply = self.CurrentReplyFrame
+        if Sender == "ai":
+            if Reply is None:
+                Reply = self.BeginReplyBlock("ai")
+                self.CurrentReplyFrame = Reply
+        else:
+            Reply = self.BeginReplyBlock("user")
+            self.CurrentReplyFrame = None  # 切换回 AI 时将新建
+        if Message != "":
+            self.AppendTextToReply(Message, Reply)
 
     def BeginReplyBlock(self, Sender="ai"):
         self.MsgIndex += 1
@@ -111,65 +118,35 @@ class ChatUI:
         self.Root.after(10, lambda: self.Canvas.yview_moveto(1.0))
         return ReplyFrame
 
-    def AppendTextToReplyBlock(self, Text, ReplyFrame):
-        Label = tk.Label(ReplyFrame, text=Text, bg=ReplyFrame["bg"], fg="black",
+    def ClearPlaceholder(self, Placeholder):
+        for Widget in Placeholder.winfo_children():
+            Widget.destroy()
+        Placeholder._stream_started = True
+        Placeholder._token_label = None
+
+    def AppendTextToReply(self, Text, Placeholder):
+        if not hasattr(Placeholder, "_stream_started"):
+            self.ClearPlaceholder(Placeholder)
+        Label = tk.Label(Placeholder, text=Text, bg=Placeholder["bg"], fg="black",
                          wraplength=500, justify="left", font=("微软雅黑", 10), padx=10, pady=4, anchor="w")
         Label.pack(anchor="w")
 
-    def AppendImageToReplyBlock(self, Path, ReplyFrame):
+    def AppendImageToReply(self, Path, Placeholder):
+        if not hasattr(Placeholder, "_stream_started"):
+            self.ClearPlaceholder(Placeholder)
         try:
             ImageObj = Image.open(Path).convert("RGB").resize((300, 200))
             Photo = ImageTk.PhotoImage(ImageObj)
             self.ImageRefs.append(Photo)
-            Label = tk.Label(ReplyFrame, image=Photo, bg=ReplyFrame["bg"])
+            Label = tk.Label(Placeholder, image=Photo, bg=Placeholder["bg"])
             Label.image = Photo
             Label.pack(anchor="w", pady=5)
         except Exception as Error:
             print(f"[图片加载失败] {Path}: {Error}")
 
-    def OnEnter(self, Event):
-        UserInput = self.InputText.get("1.0", tk.END).strip()
-        if not UserInput:
-            messagebox.showwarning("提示", "请输入内容")
-            return "break"
-
-        self.InputText.delete("1.0", tk.END)
-        self.InsertMessage("user", UserInput)
-
-        # 插入“排队中”的占位气泡
-        Placeholder = self.BeginReplyBlock("ai")
-        self.AppendTextToReplyBlock("已加入队列，等待中...", Placeholder)
-
-        self.CurrentReplyFrame = Placeholder
-        self.InputQueue.put((UserInput, Placeholder))
-        self.TryProcessNext()
-        return "break"
-
-    def OnShiftEnter(self, Event):
-        self.InputText.insert(tk.INSERT, "\n")
-        return "break"
-
-    def TryProcessNext(self):
-        if self.Processing or self.InputQueue.empty():
-            return
-        self.Processing = True
-        UserInput, Placeholder = self.InputQueue.get()
-        self.CurrentReplyFrame = Placeholder
-
-        # ✅ 清空旧内容并设置为“思考中...”
-        for Widget in Placeholder.winfo_children():
-            Widget.destroy()
-        self.AppendTextToReplyBlock("AI 教练正在思考...", Placeholder)
-
-        if self.OnAIRequested:
-            self.OnAIRequested(UserInput, Placeholder)
-
     def AppendTokenToReply(self, Token, Placeholder):
         if not hasattr(Placeholder, "_stream_started"):
-            for Widget in Placeholder.winfo_children():
-                Widget.destroy()
-            Placeholder._stream_started = True
-            Placeholder._token_label = None
+            self.ClearPlaceholder(Placeholder)
 
         if not hasattr(Placeholder, "_token_label") or Placeholder._token_label is None:
             Label = tk.Label(
@@ -193,18 +170,55 @@ class ChatUI:
         self.Canvas.update_idletasks()
         self.Canvas.yview_moveto(1.0)
 
-    def AppendMessageBlocks(self, Blocks, Sender="ai"):
-        Reply = self.BeginReplyBlock(Sender)
+    def AppendMessageReply(self, Blocks, Placeholder):
+        if not hasattr(Placeholder, "_stream_started"):
+            self.ClearPlaceholder(Placeholder)
+
         for Block in Blocks:
             if Block.startswith("[TEXT]"):
-                self.AppendTextToReplyBlock(Block.replace("[TEXT]", "").strip(), Reply)
+                self.AppendTextToReply(Block.replace("[TEXT]", "").strip(), Placeholder)
             elif Block.startswith("[IMAGE]"):
-                self.AppendImageToReplyBlock(Block.replace("[IMAGE]", "").strip(), Reply)
-        return Reply
+                self.AppendImageToReply(Block.replace("[IMAGE]", "").strip(), Placeholder)
 
     def CompleteReply(self):
+        self.CurrentReplyFrame = None  # 下一轮 AI 新建气泡
         self.Processing = False
         self.TryProcessNext()
+
+    def OnEnter(self, Event):
+        UserInput = self.InputText.get("1.0", tk.END).strip()
+        if not UserInput:
+            messagebox.showwarning("提示", "请输入内容")
+            return "break"
+
+        self.InputText.delete("1.0", tk.END)
+        self.AppendTextToReply(UserInput, self.BeginReplyBlock("user"))
+
+        # 插入“排队中”的占位气泡
+        Placeholder = self.BeginReplyBlock("ai")
+        self.AppendTextToReply("已加入队列，等待中...", Placeholder)
+
+        self.CurrentReplyFrame = Placeholder
+        self.InputQueue.put((UserInput, Placeholder))
+        self.TryProcessNext()
+        return "break"
+
+    def OnShiftEnter(self, Event):
+        self.InputText.insert(tk.INSERT, "\n")
+        return "break"
+
+    def TryProcessNext(self):
+        if self.Processing or self.InputQueue.empty():
+            return
+        self.Processing = True
+        UserInput, Placeholder = self.InputQueue.get()
+        self.CurrentReplyFrame = Placeholder
+
+        self.ClearPlaceholder(Placeholder)  # 清空“等待中...”
+        self.AppendTextToReply("AI 教练正在思考...", Placeholder)
+
+        if self.OnAIRequested:
+            self.OnAIRequested(UserInput, Placeholder)
 
     def Run(self):
         self.Root.mainloop()
@@ -227,8 +241,8 @@ if __name__ == "__main__":
                 App.AppendTokenToReply(Token, Reply)
 
             # 模拟图文混排
-            App.AppendTextToReplyBlock("下面是一个示意图：", Reply)
-            App.AppendTextToReplyBlock("继续加点解释内容...", Reply)
+            App.AppendTextToReply("下面是一个示意图：", Reply)
+            App.AppendTextToReply("继续加点解释内容...", Reply)
             App.CompleteReply()
 
         Thread(target=SimulateStream).start()

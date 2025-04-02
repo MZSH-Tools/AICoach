@@ -46,8 +46,10 @@ class AIInteraction:
                         OnTokenCallback(Token)
                     Done = JsonLine.get("done", False)
                     CollectedResponse += Token
-                    if Done and OnComplete:
-                        OnComplete(CollectedResponse)
+                    if Done:
+                        if OnComplete:
+                            OnComplete(CollectedResponse)
+                        return CollectedResponse
                 except Exception as Error:
                     continue
         except Exception as Error:

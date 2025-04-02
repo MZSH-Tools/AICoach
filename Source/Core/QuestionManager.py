@@ -94,7 +94,7 @@ class QuestionManager:
 
     def CheckAnswer(self, Answer):
         if self.CurrentQuestion is None:
-            return []
+            return False,[]
         StrList = []
         MaxChar = 1
         if self.CurrentQuestion.Type == "多选":
@@ -102,13 +102,13 @@ class QuestionManager:
 
         if len(Answer) > MaxChar:
             StrList.append(f"[TEXT]字符数过多超过题目限制，最多支持{MaxChar}个字符，请重新填写")
-            return StrList
+            return False, StrList
 
         for Char in Answer:
             StrList.append("")
             if Char not in  self.CurrentQuestion.OptionLabels:
                 StrList[-1] += f"[TEXT]字符'{Char}'不属于选项{self.CurrentQuestion.OptionLabels}, 请重新输入"
-                return StrList
+                return False, StrList
             StrList[-1] += f"[TEXT]选项{Char}:"
             CharIndex = self.CurrentQuestion.OptionLabels.index(Char)
             Explanation = self.CurrentQuestion.Options[CharIndex].get("解析", "")
@@ -120,7 +120,7 @@ class QuestionManager:
                 StrList[-1] += "错误！"
                 if self.Config.GetBool("错误解析", True):
                     StrList.append(f"[TEXT]解析:{Explanation}")
-        return StrList
+        return True, StrList
 
 if __name__ == "__main__":
     Manager = QuestionManager()

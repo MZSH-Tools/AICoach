@@ -2,10 +2,61 @@
 from Source.UI.ChatUI import ChatUI
 from Source.Core.QuestionManager import QuestionManager
 from Source.Core.AIInteraction import AIInteraction
-from Source.Config.ConfigManager import ConfigManager
+import threading
 
-# 当前状态（答题模式 / AI解析模式）
-Mode = "答题"
+Mode = "待机"
+
+def TryNextQuestion(Placeholder):
+    global Mode
+    if Manager.NextRandomQuestion():
+        UI.AppendMessageReply(Manager.GetMessageBlocks(), Placeholder)
+        UI.AppendTextToReply("请输入正确答案。", Placeholder)
+        UI.CompleteReply()
+        Mode = "答题"
+    else:
+        UI.AppendTextToReply("❌ 当前题库中没有题目可用。", Placeholder)
+        Mode = "结束"
+
+def OnAIRequested(UserInput, Placeholder):
+    global Mode
+
+    def Handle():
+        global Mode
+        match Mode:
+            case "待机":
+                TryNextQuestion(Placeholder)
+            case "答题":
+                Done, Result = Manager.CheckAnswer(UserInput)
+                UI.AppendMessageReply(Result, Placeholder)
+                if Done:
+                    Mode = "解析"
+                    UI.AppendTextToReply("您可以询问我任何题目相关问题，或者说开启下一道题。", Placeholder)
+                UI.CompleteReply()
+            case "解析":
+                Explanation = Manager.GetExplanation()
+                Prompt = AI.BuildPrompt(UserInput, Explanation)
+
+                def OnToken(Token):
+                    UI.AppendTokenToReply(Token, Placeholder)
+
+                def OnComplete(FinalText):
+                    match FinalText:
+                        case "下一道题":
+                            UI.ClearPlaceholder(Placeholder)
+                            TryNextQuestion(Placeholder)
+                        case "没有找到":
+                            UI.ClearPlaceholder(Placeholder)
+                            UI.AppendTextToReply("抱歉无法解析，改问题将上传至工作人员后台，请问你还有其他问题吗", Placeholder)
+                    UI.CompleteReply()
+                    print(FinalText)
+                    print(len(FinalText))
+
+                AI.QueryStream(Prompt, OnTokenCallback=OnToken, OnComplete=OnComplete)
+
+    threading.Thread(target=Handle).start()
+
+def PlayWelcomeAndStart():
+    UI.AppendMessageReply(Config.GetList("欢迎语", []), UI.BeginReplyBlock())
 
 if __name__ == "__main__":
     UI = ChatUI()
@@ -13,36 +64,7 @@ if __name__ == "__main__":
     AI = AIInteraction()
     Config = ConfigManager()
 
-    # Step 0: 欢迎语 + 第一题
-    for line in Config.GetList("欢迎语", []):
-        UI.InsertMessage("ai", line)
-
-    if Manager.NextRandomQuestion():
-        UI.DisplayMessageBlocks(Manager.GetMessageBlocks())
-    else:
-        UI.InsertMessage("ai", "❌ 当前题库中没有题目可用。")
-        Mode = "结束"
-
-    def OnAIRequested(UserInput, Placeholder):
-        global Mode
-        UserInput = UserInput.strip()
-
-        if Mode == "答题":
-            result = Manager.CheckAnswer(UserInput)
-            UI.InsertMessage("ai", result)  # 显示答题结果（正确 / 错误提示等）
-            Mode = "解析"
-            UI.CompleteReply("(你可以自由提问，或输入“下一题”继续)", Placeholder)
-            return
-
-        if Mode == "解析":
-            Explanation = Manager.GetExplanation()
-            Prompt = AI.BuildPrompt(UserInput, Explanation)
-
-            def OnToken(token):
-                UI.AppendTokenToReply(token, Placeholder)
-            def OnComplete(token):
-                UI.CompleteReply(token, Placeholder)
-            AI.QueryStream(Prompt, OnToken, OnComplete)
-
     UI.OnAIRequested = OnAIRequested
+    # 延迟 100 毫秒执行初始化
+    UI.Root.after(100, PlayWelcomeAndStart)
     UI.Run()
