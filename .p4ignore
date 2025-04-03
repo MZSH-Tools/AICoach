@@ -1,0 +1,68 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Conda & virtualenv
+.venv/
+venv/
+env/
+ENV/
+*.conda
+*.env
+
+# VSCode settings
+.vscode/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+*.tmp
+*.bak
+
+# Git
+.git/
+.gitignore
+
+# P4 ignore file itself
+.p4ignore
+
+# Excel temp
+~$*
+
+# __init__.pyc and other junk
+*.pyo
+*.orig
+
+# Ignore compiled Python extensions
+*.so
+*.pyd
+*.dll
+
+# Ignore project output or assets
+/build/
+/dist/
+/output/
+*.egg-info/
+
+# Ignore idea (JetBrains PyCharm)
+.idea/
+
+# Ignore cached models or data
+*.ckpt
+*.pth
+*.h5
+*.npz
+*.pkl
+*.sav
+
+# Ignore personal config
+*.user
+*.secret
+*.key
