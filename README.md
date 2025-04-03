@@ -5,6 +5,45 @@ AICoach 是一个基于本地大语言模型（如 Ollama + DeepSeek）构建的
 
 ---
 
+---
+
+## 🔊 使用说明
+
+1. **安装依赖：**（需安装 Python3 + requests + stream 库）
+2. **模型启动：** 请先启动 Ollama 服务，并加载 DeepSeek 模型
+3. **配置调整：** 参考 `Settings.yaml` 修改模型地址、语音等设置项
+4. **启动程序：** 运行 `AICoach.bat`
+
+---
+
+## ✅ 如何重新构建环境
+
+你需要先安装 [Miniconda](https://docs.conda.io/en/latest/miniconda.html) 或 Anaconda。
+
+然后在终端执行以下命令：
+
+```bash
+conda env create -f environment.yml
+conda activate aicoach
+```
+
+如果你想用自定义名字创建环境，可以执行：
+
+```bash
+conda env create -f environment.yml -n 自定义名字
+conda activate 自定义名字
+```
+
+---
+
+### 📦 pip 依赖说明
+
+如需单独使用 pip 安装依赖，也可以使用：
+
+```bash
+pip install -r requirements.txt
+```
+
 ## ✅ 项目功能模块
 
 ### 📚 题库模块（`Source/Core/QuestionManager.py` + `QuestionItem.py`）
@@ -33,9 +72,14 @@ AICoach 是一个基于本地大语言模型（如 Ollama + DeepSeek）构建的
 AICoach/
 ├── Main.py                      # 程序入口
 ├── Source/
-│   ├── Core/                    # 题库与 AI 模块
-│   ├── UI/                      # 图形界面模块
-│   └── Config/                  # 配置读取模块
+│   ├── Core/                    
+│   │   ├── AIInteraction.py     # AI交互模块
+│   │   ├── QuestionItem.py      # 题目处理模块
+│   │   └── QuestionManager.py   # 题库处理模块
+│   ├── UI/                      
+│   │   └── ChatUI.py            # 图形界面模块
+│   ├── Config/                  
+│   │   └── ConfigManager.py     # 配置读取模块
 ├── Config/
 │   └── Settings.yaml            # 主配置文件（可改为 Settings_Optimized.yaml）
 ├── Data/
@@ -44,17 +88,7 @@ AICoach/
 │   └── Images/                  # 图片等资源
 ```
 
----
-
-## 🔊 使用说明
-
-1. **安装依赖：**（需安装 Python3 + requests + stream 库）
-2. **启动程序：** 运行 `python Main.py`
-3. **模型启动：** 请先启动 Ollama 服务，并加载 DeepSeek 模型
-4. **配置调整：** 参考 `Settings.yaml` 修改模型地址、语音等设置项
-
----
-
 ## 🔧 后续开发计划
 
-- ✅ 接入 ChatTTS 实现 AI 语音播报
+- 接入 ChatTTS 实现 AI 语音播报
+- 将AI未查询到的问题后台发送给管理员
