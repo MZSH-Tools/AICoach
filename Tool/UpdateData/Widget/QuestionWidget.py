@@ -1,26 +1,23 @@
-﻿from PySide2 import QtWidgets, QtGui, QtCore
-import os, shutil
-from functools import partial
+﻿from PySide2 import QtWidgets
 from Widget.ListControlWidget import ListControlWidget
 from Widget.OptionWidget import OptionWidget
 from Widget.ParsingWidget import ParsingWidget
+import os
 
 class QuestionWidget(QtWidgets.QWidget):
-    def __init__(self, Questions, OnUpdateCallback=None, Parent=None):
+    def __init__(self, Questions, OnUpdateCallback=None, OnImageAdd=None, OnImageDelete=None, Parent=None):
         super().__init__(Parent)
         self.Questions = Questions
         self.OnUpdate = OnUpdateCallback
+        self.OnImageAdd = OnImageAdd
+        self.OnImageDelete = OnImageDelete
         self.CurIndex = -1
-
         self.FileDir = os.path.dirname(os.path.abspath(__file__))
-        self.ImageDir = os.path.normpath(os.path.join(self.FileDir, "../../../Assets/Images"))
-
         self.InitUI()
         self.EnsureDataStructure(self.Questions)
 
     def InitUI(self):
-        MainLayout = QtWidgets.QHBoxLayout(self)
-
+        Layout = QtWidgets.QHBoxLayout(self)
         self.ListControl = ListControlWidget(
             GetIdList=lambda: [q["题目ID"] for q in self.Questions],
             OnAdd=self.HandleAddQuestion,
@@ -29,69 +26,65 @@ class QuestionWidget(QtWidgets.QWidget):
             OnReorder=self.HandleReorderQuestions,
             OnSelect=self.OnSelectItem
         )
-        MainLayout.addWidget(self.ListControl, stretch=1)
+        Layout.addWidget(self.ListControl, stretch=1)
 
-        self.RightWidget = QtWidgets.QScrollArea()
-        self.RightWidget.setWidgetResizable(True)
-        RightContainer = QtWidgets.QWidget()
-        self.RightLayout = QtWidgets.QVBoxLayout(RightContainer)
-
+        RightLayout = QtWidgets.QVBoxLayout()
         self.EditText = QtWidgets.QTextEdit()
         self.EditText.textChanged.connect(self.OnQuestionTextChanged)
-        self.RightLayout.addWidget(QtWidgets.QLabel("题目文本："))
-        self.RightLayout.addWidget(self.EditText)
+        RightLayout.addWidget(QtWidgets.QLabel("题目文本："))
+        RightLayout.addWidget(self.EditText)
 
         self.ImagePathLabel = QtWidgets.QLabel("(题干图片路径)")
         self.SelectImageButton = QtWidgets.QPushButton("选择题干图片")
         self.SelectImageButton.clicked.connect(self.OnSelectImage)
-        self.RightLayout.addWidget(self.ImagePathLabel)
-        self.RightLayout.addWidget(self.SelectImageButton)
+        RightLayout.addWidget(self.ImagePathLabel)
+        RightLayout.addWidget(self.SelectImageButton)
 
-        self.RightLayout.addWidget(QtWidgets.QLabel("选项："))
-        self.OptionWidget = OptionWidget([], self.OnOptionUpdated, self.ImageDir)
-        self.RightLayout.addWidget(self.OptionWidget)
+        self.OptionWidget = OptionWidget([], self.OnOptionUpdated, self.OnImageAdd, self.OnImageDelete)
+        RightLayout.addWidget(QtWidgets.QLabel("选项："))
+        RightLayout.addWidget(self.OptionWidget)
 
-        self.RightLayout.addWidget(QtWidgets.QLabel("解析库："))
         self.ParsingWidget = ParsingWidget([], self.OnParsingUpdated)
-        self.RightLayout.addWidget(self.ParsingWidget)
+        RightLayout.addWidget(QtWidgets.QLabel("解析库："))
+        RightLayout.addWidget(self.ParsingWidget)
 
-        self.RightLayout.addWidget(QtWidgets.QLabel("题目解析："))
         self.AnalysisText = QtWidgets.QTextEdit()
         self.AnalysisText.textChanged.connect(self.OnAnalysisTextChanged)
-        self.RightLayout.addWidget(self.AnalysisText)
+        RightLayout.addWidget(QtWidgets.QLabel("题目解析："))
+        RightLayout.addWidget(self.AnalysisText)
 
-        self.RightWidget.setWidget(RightContainer)
-        MainLayout.addWidget(self.RightWidget, stretch=3)
+        RightWidget = QtWidgets.QWidget()
+        RightWidget.setLayout(RightLayout)
+        Layout.addWidget(RightWidget, stretch=3)
 
         self.RefreshList()
 
     def RefreshList(self):
         self.ListControl.Refresh()
+        if self.Questions:
+            if self.CurIndex == -1 or self.CurIndex >= len(self.Questions):
+                self.CurIndex = 0
+            self.ListControl.SetCurrentIndex(self.CurIndex)
+            self.OnSelectItem(self.CurIndex)
+        else:
+            self.CurIndex = -1
+            self.ClearEditor()
 
     def OnSelectItem(self, Index):
         if 0 <= Index < len(self.Questions):
             self.CurIndex = Index
             Q = self.Questions[Index]
-
             self.EditText.blockSignals(True)
-            self.EditText.setPlainText(Q.get("题目", {}).get("文本", ""))
+            self.EditText.setPlainText(Q["题目"].get("文本", ""))
             self.EditText.blockSignals(False)
-
-            self.ImagePathLabel.setText(Q.get("题目", {}).get("图片", ""))
-
+            self.ImagePathLabel.setText(Q["题目"].get("图片", ""))
             self.AnalysisText.blockSignals(True)
-            self.AnalysisText.setPlainText(Q.get("题目解析") or "")
+            self.AnalysisText.setPlainText(Q.get("题目解析", ""))
             self.AnalysisText.blockSignals(False)
-
-            if hasattr(self, "OptionWidget"):
-                self.OptionWidget.OptionList = Q["选项"]
-                self.OptionWidget.CurIndex = -1
-                self.OptionWidget.RefreshList()
-
-            if hasattr(self, "ParsingWidget"):
-                self.ParsingWidget.ParsingList = Q["解析库"]
-                self.ParsingWidget.CurIndex = -1
-                self.ParsingWidget.RefreshList()
+            self.OptionWidget.OptionList = Q["选项"]
+            self.OptionWidget.RefreshList()
+            self.ParsingWidget.ParsingList = Q["解析库"]
+            self.ParsingWidget.RefreshList()
 
     def OnOptionUpdated(self, UpdatedList):
         if self.CurIndex != -1:
@@ -103,14 +96,32 @@ class QuestionWidget(QtWidgets.QWidget):
             self.Questions[self.CurIndex]["解析库"] = UpdatedList
             self.OnUpdate(self.Questions)
 
+    def OnQuestionTextChanged(self):
+        if self.CurIndex != -1:
+            self.Questions[self.CurIndex]["题目"]["文本"] = self.EditText.toPlainText()
+            self.OnUpdate(self.Questions)
+
+    def OnAnalysisTextChanged(self):
+        if self.CurIndex != -1:
+            self.Questions[self.CurIndex]["题目解析"] = self.AnalysisText.toPlainText()
+            self.OnUpdate(self.Questions)
+
+    def OnSelectImage(self):
+        Path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "选择图片", "", "Images (*.png *.jpg *.jpeg)")
+        if Path and self.OnImageAdd and self.CurIndex != -1:
+            RelPath = self.OnImageAdd(Path)
+            self.ImagePathLabel.setText(RelPath)
+            self.Questions[self.CurIndex]["题目"]["图片"] = RelPath
+            self.OnUpdate(self.Questions)
+
     def HandleAddQuestion(self):
         NewId, Ok = QtWidgets.QInputDialog.getText(self, "添加题目", "请输入题目ID：")
         if not Ok or not NewId:
             return None
-        if self.IsDuplicateID(NewId):
-            QtWidgets.QMessageBox.warning(self, "添加失败", f"ID “{NewId}” 已存在。")
+        if self.IsDuplicateId(NewId):
+            QtWidgets.QMessageBox.warning(self, "添加失败", f"题目ID “{NewId}” 已存在。")
             return None
-        NewQuestion = {
+        NewItem = {
             "题目ID": NewId,
             "题目": {"文本": "", "图片": ""},
             "题目类型": "单选",
@@ -118,7 +129,7 @@ class QuestionWidget(QtWidgets.QWidget):
             "解析库": [],
             "题目解析": ""
         }
-        self.Questions.append(NewQuestion)
+        self.Questions.append(NewItem)
         self.CurIndex = len(self.Questions) - 1
         self.OnUpdate(self.Questions)
         return NewId
@@ -128,59 +139,40 @@ class QuestionWidget(QtWidgets.QWidget):
             self.Questions.pop(Index)
             if self.Questions:
                 self.CurIndex = Index - 1 if Index - 1 >= 0 else 0
-                self.OnSelectItem(self.CurIndex)
             else:
                 self.CurIndex = -1
-                self.ClearRightPanel()
             self.OnUpdate(self.Questions)
 
     def HandleRenameQuestion(self, Index, NewId):
-        if self.IsDuplicateID(NewId, exclude_index=Index):
+        if self.IsDuplicateId(NewId, excludeIndex=Index):
             return False
         self.Questions[Index]["题目ID"] = NewId
         self.OnUpdate(self.Questions)
         return True
 
     def HandleReorderQuestions(self, IdOrder):
-        IdToQ = {q["题目ID"]: q for q in self.Questions}
-        NewOrder = [IdToQ[qid] for qid in IdOrder if qid in IdToQ]
-        self.Questions = NewOrder
-        self.OnUpdate(self.Questions)
+        IdToItem = {q["题目ID"]: q for q in self.Questions}
+        NewList = [IdToItem[qid] for qid in IdOrder if qid in IdToItem]
+        if len(NewList) == len(self.Questions):
+            self.Questions[:] = NewList
+            self.OnUpdate(self.Questions)
 
-    def IsDuplicateID(self, NewId, exclude_index=None):
-        for I, Q in enumerate(self.Questions):
-            if I == exclude_index:
+    def IsDuplicateId(self, Id, excludeIndex=None):
+        for I, Item in enumerate(self.Questions):
+            if I == excludeIndex:
                 continue
-            if Q["题目ID"] == NewId:
+            if Item.get("题目ID") == Id:
                 return True
         return False
 
-    def OnQuestionTextChanged(self):
-        if self.CurIndex != -1:
-            self.Questions[self.CurIndex]["题目"]["文本"] = self.EditText.toPlainText()
-            self.OnUpdate(self.Questions)
-
-    def OnAnalysisTextChanged(self):
-        if self.CurIndex != -1:
-            self.Questions[self.CurIndex].setdefault("题目解析", "")
-            self.Questions[self.CurIndex]["题目解析"] = self.AnalysisText.toPlainText()
-            self.OnUpdate(self.Questions)
-
-    def OnSelectImage(self):
-        Path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "选择题干图片", self.ImageDir, "Images (*.png *.jpg *.jpeg)")
-        if Path:
-            FileName = os.path.basename(Path)
-            Target = os.path.join(self.ImageDir, FileName)
-            if not os.path.exists(Target):
-                try:
-                    shutil.copy(Path, Target)
-                except Exception as e:
-                    print(f"复制图片失败：{e}")
-            Rel = os.path.relpath(Target, self.FileDir).replace("\\", "/")
-            self.ImagePathLabel.setText(Rel)
-            if self.CurIndex != -1:
-                self.Questions[self.CurIndex]["题目"]["图片"] = Rel
-                self.OnUpdate(self.Questions)
+    def ClearEditor(self):
+        self.EditText.blockSignals(True)
+        self.EditText.clear()
+        self.EditText.blockSignals(False)
+        self.ImagePathLabel.setText("")
+        self.AnalysisText.blockSignals(True)
+        self.AnalysisText.clear()
+        self.AnalysisText.blockSignals(False)
 
     def EnsureDataStructure(self, Questions):
         for Q in Questions:
@@ -190,20 +182,18 @@ class QuestionWidget(QtWidgets.QWidget):
             Q.setdefault("选项", [])
             Q.setdefault("解析库", [])
             Q.setdefault("题目解析", "")
-
             for I, Opt in enumerate(Q["选项"]):
                 Opt.setdefault("选项ID", f"选项{I + 1}")
                 Opt.setdefault("文本", "")
                 Opt.setdefault("图片", "")
                 Opt.setdefault("是否正确", False)
                 Opt.setdefault("解析", "")
-
             for I, Parse in enumerate(Q["解析库"]):
                 Parse.setdefault("解析ID", f"解析{I + 1}")
                 Parse.setdefault("问题", "")
                 Parse.setdefault("解析", "")
 
-        # 清空 UI
+        # ✅ 清空 UI 初始状态
         self.EditText.blockSignals(True)
         self.EditText.clear()
         self.EditText.blockSignals(False)
@@ -211,4 +201,3 @@ class QuestionWidget(QtWidgets.QWidget):
         self.AnalysisText.blockSignals(True)
         self.AnalysisText.clear()
         self.AnalysisText.blockSignals(False)
-

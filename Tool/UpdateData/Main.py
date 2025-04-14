@@ -1,14 +1,65 @@
 ﻿from PySide2 import QtWidgets
 from Widget.QuestionWidget import QuestionWidget
 from Widget.ParsingWidget import ParsingWidget
-import os, json, sys
+import os, json, sys, shutil
 
-# 路径管理
+class SelectPathDialog(QtWidgets.QDialog):
+    def __init__(self, DefaultJsonPath, DefaultImageDir):
+        super().__init__()
+        self.setWindowTitle("选择题库路径")
+        self.JsonPath = os.path.abspath(DefaultJsonPath)
+        self.ImageDir = os.path.abspath(DefaultImageDir)
+
+        Layout = QtWidgets.QFormLayout(self)
+
+        self.JsonPathEdit = QtWidgets.QLineEdit(self.JsonPath)
+        JsonBrowse = QtWidgets.QPushButton("浏览")
+        JsonBrowse.clicked.connect(self.SelectJsonPath)
+        JsonLayout = QtWidgets.QHBoxLayout()
+        JsonLayout.addWidget(self.JsonPathEdit)
+        JsonLayout.addWidget(JsonBrowse)
+        Layout.addRow("题库 JSON 文件：", JsonLayout)
+
+        self.ImageDirEdit = QtWidgets.QLineEdit(self.ImageDir)
+        ImgBrowse = QtWidgets.QPushButton("浏览")
+        ImgBrowse.clicked.connect(self.SelectImageDir)
+        ImgLayout = QtWidgets.QHBoxLayout()
+        ImgLayout.addWidget(self.ImageDirEdit)
+        ImgLayout.addWidget(ImgBrowse)
+        Layout.addRow("图片目录路径：", ImgLayout)
+
+        BtnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        BtnBox.accepted.connect(self.accept)
+        BtnBox.rejected.connect(self.reject)
+        Layout.addRow(BtnBox)
+
+        self.setLayout(Layout)
+
+    def SelectJsonPath(self):
+        Path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "选择 JSON 文件", self.JsonPath, "JSON 文件 (*.json)")
+        if Path:
+            self.JsonPathEdit.setText(os.path.abspath(Path))
+
+    def SelectImageDir(self):
+        Dir = QtWidgets.QFileDialog.getExistingDirectory(self, "选择图片目录", self.ImageDir)
+        if Dir:
+            self.ImageDirEdit.setText(os.path.abspath(Dir))
+
+    def GetPaths(self):
+        return os.path.abspath(self.JsonPathEdit.text()), os.path.abspath(self.ImageDirEdit.text())
+
+
+App = QtWidgets.QApplication()
+DefaultDir = os.path.dirname(os.path.abspath(__file__))
+DefaultJsonPath = os.path.join(DefaultDir, "../../Data/QuestionBank.json")
+DefaultImageDir = os.path.join(DefaultDir, "../../Assets/Images")
+
+Dialog = SelectPathDialog(DefaultJsonPath, DefaultImageDir)
+if Dialog.exec_() != QtWidgets.QDialog.Accepted:
+    sys.exit(0)
+JsonPath, OutputImageDir = Dialog.GetPaths()
 FileDir = os.path.dirname(os.path.abspath(__file__))
-JsonPath = os.path.join(FileDir, "../../Data/QuestionBank.json")
-OutputImageDir = os.path.join(FileDir, "../../Assets/Images")
 
-# 初始化数据
 try:
     with open(JsonPath, "r", encoding="utf-8-sig") as f:
         JsonData = json.load(f)
@@ -18,9 +69,9 @@ except Exception as e:
     print(f"读取 JSON 文件失败：{str(e)}")
     sys.exit(1)
 
-# 回调函数：保存题库内容
 def SaveQuestions(NewQuestions):
     JsonData["题库"] = NewQuestions
+    print("[保存触发] 当前题库数量：", len(NewQuestions))
     try:
         with open(JsonPath, "w", encoding="utf-8") as f:
             json.dump(JsonData, f, ensure_ascii=False, indent=2)
@@ -28,7 +79,6 @@ def SaveQuestions(NewQuestions):
     except Exception as e:
         print(f"保存 JSON 文件失败：{e}")
 
-# 回调函数：保存公共解析库内容
 def SavePublicParsingLibrary(NewList):
     JsonData["公共解析库"] = NewList
     try:
@@ -38,12 +88,22 @@ def SavePublicParsingLibrary(NewList):
     except Exception as e:
         print(f"保存 JSON 文件失败：{e}")
 
-# 初始化 UI 应用和主窗口
-App = QtWidgets.QApplication()
+def OnImageImport(SourcePath):
+    FileName = os.path.basename(SourcePath)
+    TargetPath = os.path.join(OutputImageDir, FileName)
+    if not os.path.exists(TargetPath):
+        shutil.copy(SourcePath, TargetPath)
+    RelPath = os.path.relpath(TargetPath, FileDir).replace("\\", "/")
+    return RelPath
+
+def OnImageDelete(RelPath):
+    TargetPath = os.path.join(FileDir, RelPath)
+    if os.path.exists(TargetPath):
+        os.remove(TargetPath)
+
 Window = QtWidgets.QMainWindow()
 Window.setWindowTitle("题库数据更新程序")
 
-# 设置更合适的窗口大小（80% 屏幕）
 Screen = App.primaryScreen().geometry()
 Width = int(Screen.width() * 0.8)
 Height = int(Screen.height() * 0.8)
@@ -55,13 +115,11 @@ CentralWidget = QtWidgets.QWidget()
 Window.setCentralWidget(CentralWidget)
 MainLayout = QtWidgets.QVBoxLayout(CentralWidget)
 
-# 顶部标签页按钮区和主内容区
 TagLayout = QtWidgets.QHBoxLayout()
 MainLayout.addLayout(TagLayout, stretch=0)
 Stack = QtWidgets.QStackedWidget()
 MainLayout.addWidget(Stack, stretch=1)
 
-# 页切换函数
 def ChangePage(PageIndex):
     global CurPageIndex, ButtonList
     if CurPageIndex != PageIndex:
@@ -71,12 +129,10 @@ def ChangePage(PageIndex):
             ButtonList[PageIndex].setChecked(True)
             CurPageIndex = PageIndex
             Stack.setCurrentIndex(PageIndex)
-            print(f"切换至页面：{CurPageIndex}")
 
-# 初始化页面组件
 def InitWidgetMap():
     return {
-        "题库": QuestionWidget(Questions, OnUpdateCallback=SaveQuestions),
+        "题库": QuestionWidget(Questions, OnUpdateCallback=SaveQuestions, OnImageAdd=OnImageImport, OnImageDelete=OnImageDelete),
         "公共解析库": ParsingWidget(PublicParsingLibrary, OnUpdate=SavePublicParsingLibrary)
     }
 
@@ -84,7 +140,6 @@ WidgetMap = InitWidgetMap()
 ButtonList = []
 CurPageIndex = -1
 
-# 添加按钮与页面
 for Index, (Name, Widget) in enumerate(WidgetMap.items()):
     Button = QtWidgets.QPushButton(Name)
     Button.setCheckable(True)
@@ -95,7 +150,7 @@ for Index, (Name, Widget) in enumerate(WidgetMap.items()):
     Stack.addWidget(Widget)
 
 TagLayout.addStretch()
-ChangePage(0)  # ✅ 默认选中第一个页面
+ChangePage(0)
 
 Window.show()
 App.exec_()

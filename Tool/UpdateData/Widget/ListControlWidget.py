@@ -1,129 +1,80 @@
 ﻿from PySide2 import QtWidgets, QtCore
-from functools import partial
 
 class ListControlWidget(QtWidgets.QWidget):
-    def __init__(self, GetIdList, OnAdd, OnDelete, OnRename, OnReorder, OnSelect, Parent=None):
-        super().__init__(Parent)
-
+    def __init__(self, GetIdList, OnAdd, OnDelete, OnRename, OnReorder, OnSelect):
+        super().__init__()
         self.GetIdList = GetIdList
         self.OnAdd = OnAdd
         self.OnDelete = OnDelete
         self.OnRename = OnRename
         self.OnReorder = OnReorder
         self.OnSelect = OnSelect
-
         self.CurrentId = None
+        self.CurIndex = -1
         self.InitUI()
 
     def InitUI(self):
         Layout = QtWidgets.QVBoxLayout(self)
-
         self.ListWidget = QtWidgets.QListWidget()
+        self.ListWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.ListWidget.customContextMenuRequested.connect(self.OnContextMenu)
+        self.ListWidget.setDragEnabled(True)
+        self.ListWidget.setAcceptDrops(True)
+        self.ListWidget.setDropIndicatorShown(True)
+        self.ListWidget.setDefaultDropAction(QtCore.Qt.MoveAction)
         self.ListWidget.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
-        self.ListWidget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
-        self.ListWidget.currentRowChanged.connect(self.OnRowChanged)
-        self.ListWidget.model().rowsMoved.connect(self.OnRowsMoved)
-
+        self.ListWidget.currentRowChanged.connect(self.OnSelect)
         Layout.addWidget(self.ListWidget)
 
-        AddButton = QtWidgets.QPushButton("+")
-        AddButton.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        AddButton.clicked.connect(self.OnAddClicked)
-        Layout.addWidget(AddButton)
+        self.AddButton = QtWidgets.QPushButton("+ 添加")
+        self.AddButton.clicked.connect(self.HandleAdd)
+        Layout.addWidget(self.AddButton)
 
-    def Refresh(self, SelectId=None):
+    def Refresh(self):
         self.ListWidget.clear()
-        IdList = self.GetIdList()
+        for Id in self.GetIdList():
+            self.ListWidget.addItem(Id)
 
-        for Index, ItemId in enumerate(IdList):
-            Item = QtWidgets.QListWidgetItem()
-            Widget = QtWidgets.QWidget()
-            RowLayout = QtWidgets.QHBoxLayout(Widget)
-            RowLayout.setContentsMargins(4, 2, 4, 2)
-
-            Label = QtWidgets.QLabel(ItemId)
-            RowLayout.addWidget(Label, stretch=1)
-
-            EditButton = QtWidgets.QPushButton("编辑")
-            EditButton.clicked.connect(partial(self.OnRenameClicked, Index, Label))
-            RowLayout.addWidget(EditButton)
-
-            DeleteButton = QtWidgets.QPushButton("-")
-            DeleteButton.clicked.connect(partial(self.OnDeleteClicked, Index))
-            RowLayout.addWidget(DeleteButton)
-
-            Item.setSizeHint(Widget.sizeHint())
-            self.ListWidget.addItem(Item)
-            self.ListWidget.setItemWidget(Item, Widget)
-
-        if IdList:
-            # 决定选中哪个 ID
-            if SelectId and SelectId in IdList:
-                self.CurrentId = SelectId
-            elif self.CurrentId not in IdList:
-                self.CurrentId = IdList[0]
-
-            # ✅ 延迟选中，确保 UI 稳定后触发 OnSelect
-            QtCore.QTimer.singleShot(200, lambda: self.SetCurrentById(self.CurrentId))
-        else:
-            self.CurrentId = None
-
-    def OnAddClicked(self):
-        NewId = self.OnAdd()
-        if NewId:
-            self.CurrentId = NewId
-            self.Refresh(SelectId=NewId)
-
-    def OnDeleteClicked(self, Index):
-        IdList = self.GetIdList()
-        if 0 <= Index < len(IdList):
-            self.OnDelete(Index)
-            NewList = self.GetIdList()
-
-            if not NewList:
-                self.CurrentId = None
-            elif Index - 1 >= 0:
-                self.CurrentId = NewList[Index - 1]
-            else:
-                self.CurrentId = NewList[0]
-
-            self.Refresh(SelectId=self.CurrentId)
-
-    def OnRenameClicked(self, Index, Label):
-        OldId = Label.text()
-        NewId, Ok = QtWidgets.QInputDialog.getText(self, "编辑ID", "请输入新的ID：", text=OldId)
-        if Ok and NewId and NewId != OldId:
-            if self.OnRename(Index, NewId):
-                self.CurrentId = NewId
-                self.Refresh(SelectId=NewId)
-            else:
-                QtWidgets.QMessageBox.warning(self, "重名错误", f"ID “{NewId}” 已存在，修改失败。")
-
-    def OnRowChanged(self, Index):
-        if 0 <= Index < self.ListWidget.count():
-            Widget = self.ListWidget.itemWidget(self.ListWidget.item(Index))
-            Label = Widget.findChild(QtWidgets.QLabel)
-            if Label:
-                self.CurrentId = Label.text()
-                self.OnSelect(Index)
-
-    def OnRowsMoved(self, *Args):
-        NewOrder = []
-        for I in range(self.ListWidget.count()):
-            Widget = self.ListWidget.itemWidget(self.ListWidget.item(I))
-            Label = Widget.findChild(QtWidgets.QLabel)
-            if Label:
-                NewOrder.append(Label.text())
-        self.OnReorder(NewOrder)
-        self.Refresh(SelectId=self.CurrentId)
-
-    def SetCurrentById(self, Id):
-        for I in range(self.ListWidget.count()):
-            Widget = self.ListWidget.itemWidget(self.ListWidget.item(I))
-            Label = Widget.findChild(QtWidgets.QLabel)
-            if Label and Label.text() == Id:
-                self.ListWidget.setCurrentRow(I)
-                return
+        if self.ListWidget.count() > 0 and self.CurrentId is None:
+            QtCore.QTimer.singleShot(200, lambda: self.SetCurrentIndex(0))
 
     def SetCurrentIndex(self, Index):
-        self.ListWidget.setCurrentRow(Index)
+        if 0 <= Index < self.ListWidget.count():
+            self.ListWidget.setCurrentRow(Index)
+            self.CurIndex = Index
+            self.CurrentId = self.GetIdList()[Index]
+            self.OnSelect(Index)
+
+    def HandleAdd(self):
+        NewId = self.OnAdd()
+        if NewId:
+            self.Refresh()
+            for Index, Id in enumerate(self.GetIdList()):
+                if Id == NewId:
+                    self.SetCurrentIndex(Index)
+                    break
+
+    def OnContextMenu(self, Pos):
+        Item = self.ListWidget.itemAt(Pos)
+        if not Item:
+            return
+        Index = self.ListWidget.row(Item)
+        Menu = QtWidgets.QMenu()
+        RenameAction = Menu.addAction("✏️ 重命名")
+        DeleteAction = Menu.addAction("🗑️ 删除")
+        Action = Menu.exec_(self.ListWidget.mapToGlobal(Pos))
+
+        if Action == RenameAction:
+            CurId = self.GetIdList()[Index]
+            NewId, Ok = QtWidgets.QInputDialog.getText(self, "重命名", "请输入新ID：", text=CurId)
+            if Ok and NewId and NewId != CurId:
+                if self.OnRename(Index, NewId):
+                    self.Refresh()
+                    self.SetCurrentIndex(Index)
+        elif Action == DeleteAction:
+            self.OnDelete(Index)
+            self.Refresh()
+
+    def HandleReorder(self, IdOrder):
+        self.OnReorder(IdOrder)
+        self.Refresh()
