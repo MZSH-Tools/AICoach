@@ -1,13 +1,9 @@
-﻿from PySide2 import QtWidgets
+﻿from PySide2 import QtWidgets, QtGui, QtCore
 import os, shutil
+from functools import partial
 
 class QuestionWidget(QtWidgets.QWidget):
     def __init__(self, Questions, OnUpdateCallback=None, Parent=None):
-        """
-        参数:
-            Questions: 题库列表（List[Dict]），格式必须为 JSON 中的“题库”部分。
-            OnUpdateCallback: 回调函数，接收修改后的 Questions 用于保存。
-        """
         super().__init__(Parent)
         self.Questions = Questions
         self.OnUpdate = OnUpdateCallback
@@ -21,28 +17,25 @@ class QuestionWidget(QtWidgets.QWidget):
     def InitUI(self):
         MainLayout = QtWidgets.QHBoxLayout(self)
 
-        # 左侧题目ID列表 + 按钮
+        # 左侧列表和 + 按钮
         LeftLayout = QtWidgets.QVBoxLayout()
         self.IDList = QtWidgets.QListWidget()
-        for Q in self.Questions:
-            self.IDList.addItem(Q.get("题目ID", "未知ID"))
+        self.IDList.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.IDList.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
         self.IDList.currentRowChanged.connect(self.OnSelectItem)
-
-        AddButton = QtWidgets.QPushButton("新增题目")
-        AddButton.clicked.connect(self.OnAddItem)
-        DelButton = QtWidgets.QPushButton("删除题目")
-        DelButton.clicked.connect(self.OnDeleteItem)
-
+        self.IDList.model().rowsMoved.connect(self.OnListReordered)
         LeftLayout.addWidget(self.IDList)
-        LeftLayout.addWidget(AddButton)
-        LeftLayout.addWidget(DelButton)
 
-        # 右侧题目编辑区域
+        self.AddButton = QtWidgets.QPushButton("+")
+        self.AddButton.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.AddButton.clicked.connect(self.OnAddItem)
+        LeftLayout.addWidget(self.AddButton)
+
+        MainLayout.addLayout(LeftLayout, stretch=1)
+
+        # 右侧编辑区
         self.RightWidget = QtWidgets.QWidget()
         RightLayout = QtWidgets.QFormLayout(self.RightWidget)
-
-        self.EditQuestionID = QtWidgets.QLineEdit()
-        self.EditQuestionID.textChanged.connect(self.OnQuestionIDChanged)
 
         self.EditText = QtWidgets.QTextEdit()
         self.EditText.textChanged.connect(self.OnQuestionTextChanged)
@@ -51,47 +44,108 @@ class QuestionWidget(QtWidgets.QWidget):
         self.SelectImageButton = QtWidgets.QPushButton("选择题干图片")
         self.SelectImageButton.clicked.connect(self.OnSelectImage)
 
-        RightLayout.addRow("题目ID：", self.EditQuestionID)
         RightLayout.addRow("题目文本：", self.EditText)
         RightLayout.addRow("图片路径：", self.ImagePathLabel)
         RightLayout.addRow("", self.SelectImageButton)
 
-        MainLayout.addLayout(LeftLayout, stretch=1)
         MainLayout.addWidget(self.RightWidget, stretch=3)
+
+        self.RefreshList()
+
+    def RefreshList(self):
+        self.IDList.clear()
+        for i, Q in enumerate(self.Questions):
+            item = QtWidgets.QListWidgetItem()
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout(widget)
+            layout.setContentsMargins(4, 2, 4, 2)
+
+            label = QtWidgets.QLabel(Q.get("题目ID", "未知ID"))
+            layout.addWidget(label, stretch=1)
+
+            editButton = QtWidgets.QPushButton("编辑")
+            editButton.clicked.connect(partial(self.OnEditItem, i))
+            layout.addWidget(editButton)
+
+            deleteButton = QtWidgets.QPushButton("-")
+            deleteButton.clicked.connect(partial(self.OnDeleteItem, i))
+            layout.addWidget(deleteButton)
+
+            item.setSizeHint(widget.sizeHint())
+            self.IDList.addItem(item)
+            self.IDList.setItemWidget(item, widget)
 
     def OnSelectItem(self, Index):
         if 0 <= Index < len(self.Questions):
             self.CurIndex = Index
             Q = self.Questions[Index]
-            self.EditQuestionID.setText(Q.get("题目ID", ""))
+            self.EditText.blockSignals(True)
             self.EditText.setPlainText(Q.get("题目", {}).get("文本", ""))
+            self.EditText.blockSignals(False)
             self.ImagePathLabel.setText(Q.get("题目", {}).get("图片", ""))
 
+    def IsDuplicateID(self, ID, excludeIndex=None):
+        return any(q["题目ID"] == ID for i, q in enumerate(self.Questions) if i != excludeIndex)
+
+    def ShowDuplicateWarning(self, ID):
+        QtWidgets.QMessageBox.warning(self, "ID重复", f"题目ID '{ID}' 已存在，请使用唯一的ID。")
+
     def OnAddItem(self):
+        NewID, ok = QtWidgets.QInputDialog.getText(self, "新增题目", "请输入新题目的ID:")
+        if not ok or not NewID:
+            return
+
+        if self.IsDuplicateID(NewID):
+            self.ShowDuplicateWarning(NewID)
+            return
+
         NewQ = {
-            "题目ID": f"S99.99.{len(self.Questions)+1:03d}",
+            "题目ID": NewID,
             "题目": {"文本": "", "图片": ""},
             "题目类型": "单选",
             "选项": [],
             "解析库": []
         }
         self.Questions.append(NewQ)
-        self.IDList.addItem(NewQ["题目ID"])
+        self.RefreshList()
         self.IDList.setCurrentRow(len(self.Questions) - 1)
         self.EmitUpdate()
 
-    def OnDeleteItem(self):
-        Row = self.IDList.currentRow()
-        if 0 <= Row < len(self.Questions):
-            self.Questions.pop(Row)
-            self.IDList.takeItem(Row)
-            self.ClearRightPanel()
+    def OnDeleteItem(self, Index):
+        if 0 <= Index < len(self.Questions):
+            self.Questions.pop(Index)
+            self.RefreshList()
+
+            if len(self.Questions) == 0:
+                self.CurIndex = -1
+                self.ClearRightPanel()
+                return self.EmitUpdate()
+
+            # 设置为前一个索引，如果不存在则为 0
+            self.CurIndex = Index - 1 if Index - 1 >= 0 else 0
+            self.IDList.setCurrentRow(self.CurIndex)
+            self.OnSelectItem(self.CurIndex)
+
             self.EmitUpdate()
 
-    def ClearRightPanel(self):
-        self.EditQuestionID.clear()
-        self.EditText.clear()
-        self.ImagePathLabel.setText("")
+    def OnEditItem(self, Index):
+        if 0 <= Index < len(self.Questions):
+            currentID = self.Questions[Index]["题目ID"]
+            NewID, ok = QtWidgets.QInputDialog.getText(self, "编辑题目ID", "请输入新的题目ID:", text=currentID)
+            if ok and NewID:
+                if self.IsDuplicateID(NewID, excludeIndex=Index):
+                    self.ShowDuplicateWarning(NewID)
+                    return
+                self.Questions[Index]["题目ID"] = NewID
+                self.RefreshList()
+                self.IDList.setCurrentRow(Index)
+                self.EmitUpdate()
+
+    def OnQuestionTextChanged(self):
+        if self.CurIndex != -1 and self.CurIndex < len(self.Questions):
+            NewText = self.EditText.toPlainText()
+            self.Questions[self.CurIndex]["题目"]["文本"] = NewText
+            self.EmitUpdate()
 
     def OnSelectImage(self):
         FilePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "选择题干图片", self.ImageDir, "Images (*.png *.jpg *.jpeg)")
@@ -105,21 +159,29 @@ class QuestionWidget(QtWidgets.QWidget):
                     print(f"复制图片失败：{e}")
             RelPath = os.path.relpath(TargetPath, self.FileDir).replace("\\", "/")
             self.ImagePathLabel.setText(RelPath)
-            if self.CurIndex != -1:
+            if self.CurIndex != -1 and self.CurIndex < len(self.Questions):
                 self.Questions[self.CurIndex]["题目"]["图片"] = RelPath
                 self.EmitUpdate()
 
-    def OnQuestionIDChanged(self, NewText):
-        if self.CurIndex != -1:
-            self.Questions[self.CurIndex]["题目ID"] = NewText
-            self.IDList.item(self.CurIndex).setText(NewText)
-            self.EmitUpdate()
+    def OnListReordered(self, *args):
+        newQuestions = []
+        for i in range(self.IDList.count()):
+            itemWidget = self.IDList.itemWidget(self.IDList.item(i))
+            label = itemWidget.findChild(QtWidgets.QLabel)
+            if label:
+                idText = label.text()
+                for q in self.Questions:
+                    if q["题目ID"] == idText:
+                        newQuestions.append(q)
+                        break
+        self.Questions = newQuestions
+        self.EmitUpdate()
 
-    def OnQuestionTextChanged(self):
-        if self.CurIndex != -1:
-            NewText = self.EditText.toPlainText()
-            self.Questions[self.CurIndex]["题目"]["文本"] = NewText
-            self.EmitUpdate()
+    def ClearRightPanel(self):
+        self.EditText.blockSignals(True)
+        self.EditText.clear()
+        self.EditText.blockSignals(False)
+        self.ImagePathLabel.setText("")
 
     def EmitUpdate(self):
         if self.OnUpdate:
