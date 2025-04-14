@@ -13,8 +13,9 @@ class QuestionWidget(QtWidgets.QWidget):
         self.OnImageDelete = OnImageDelete
         self.CurIndex = -1
         self.FileDir = os.path.dirname(os.path.abspath(__file__))
-        self.InitUI()
         self.EnsureDataStructure(self.Questions)
+        self.OnUpdate(self.Questions)
+        self.InitUI()
 
     def InitUI(self):
         Layout = QtWidgets.QHBoxLayout(self)
@@ -109,7 +110,7 @@ class QuestionWidget(QtWidgets.QWidget):
     def OnSelectImage(self):
         Path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "选择图片", "", "Images (*.png *.jpg *.jpeg)")
         if Path and self.OnImageAdd and self.CurIndex != -1:
-            RelPath = self.OnImageAdd(Path)
+            RelPath = self.OnImageAdd(Path, self.Questions[self.CurIndex]["题目ID"])
             self.ImagePathLabel.setText(RelPath)
             self.Questions[self.CurIndex]["题目"]["图片"] = RelPath
             self.OnUpdate(self.Questions)
@@ -192,12 +193,3 @@ class QuestionWidget(QtWidgets.QWidget):
                 Parse.setdefault("解析ID", f"解析{I + 1}")
                 Parse.setdefault("问题", "")
                 Parse.setdefault("解析", "")
-
-        # ✅ 清空 UI 初始状态
-        self.EditText.blockSignals(True)
-        self.EditText.clear()
-        self.EditText.blockSignals(False)
-        self.ImagePathLabel.setText("")
-        self.AnalysisText.blockSignals(True)
-        self.AnalysisText.clear()
-        self.AnalysisText.blockSignals(False)

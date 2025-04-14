@@ -7,7 +7,8 @@ class ParsingWidget(QtWidgets.QWidget):
         self.ParsingList = ParsingList
         self.OnUpdate = OnUpdate
         self.CurIndex = -1
-
+        self.EnsureDataStructure(self.ParsingList)
+        self.OnUpdate(self.ParsingList)
         self.InitUI()
 
     def InitUI(self):
@@ -39,6 +40,12 @@ class ParsingWidget(QtWidgets.QWidget):
 
         self.RefreshList()
 
+    def EnsureDataStructure(self, ParsingList):
+        for i, p in enumerate(ParsingList):
+            p.setdefault("解析ID", f"解析{i+1}")
+            p.setdefault("问题", "")
+            p.setdefault("解析", "")
+
     def RefreshList(self):
         self.ListControl.Refresh()
         if self.ParsingList:
@@ -50,20 +57,28 @@ class ParsingWidget(QtWidgets.QWidget):
             self.CurIndex = -1
             self.ClearEditor()
 
-    def OnSelectItem(self, Index):
-        if 0 <= Index < len(self.ParsingList):
-            self.CurIndex = Index
-            Item = self.ParsingList[Index]
+    def ClearEditor(self):
+        self.EditQuestion.blockSignals(True)
+        self.EditQuestion.clear()
+        self.EditQuestion.blockSignals(False)
+        self.EditAnalysis.blockSignals(True)
+        self.EditAnalysis.clear()
+        self.EditAnalysis.blockSignals(False)
+
+    def OnSelectItem(self, index):
+        if 0 <= index < len(self.ParsingList):
+            self.CurIndex = index
+            item = self.ParsingList[index]
             self.EditQuestion.blockSignals(True)
-            self.EditQuestion.setText(Item.get("问题", ""))
+            self.EditQuestion.setText(item.get("问题", ""))
             self.EditQuestion.blockSignals(False)
             self.EditAnalysis.blockSignals(True)
-            self.EditAnalysis.setPlainText(Item.get("解析", ""))
+            self.EditAnalysis.setPlainText(item.get("解析", ""))
             self.EditAnalysis.blockSignals(False)
 
-    def OnQuestionChanged(self, Text):
+    def OnQuestionChanged(self, text):
         if self.CurIndex != -1:
-            self.ParsingList[self.CurIndex]["问题"] = Text
+            self.ParsingList[self.CurIndex]["问题"] = text
             self.OnUpdate(self.ParsingList)
 
     def OnAnalysisChanged(self):
@@ -72,57 +87,45 @@ class ParsingWidget(QtWidgets.QWidget):
             self.OnUpdate(self.ParsingList)
 
     def HandleAdd(self):
-        NewId, Ok = QtWidgets.QInputDialog.getText(self, "添加解析项", "请输入解析ID：")
-        if not Ok or not NewId:
+        new_id, ok = QtWidgets.QInputDialog.getText(self, "添加解析项", "请输入解析ID：")
+        if not ok or not new_id:
             return None
-        if self.IsDuplicateId(NewId):
-            QtWidgets.QMessageBox.warning(self, "添加失败", f"解析ID “{NewId}” 已存在。")
+        if self.IsDuplicateId(new_id):
+            QtWidgets.QMessageBox.warning(self, "添加失败", f"解析ID “{new_id}” 已存在。")
             return None
-        NewItem = {
-            "解析ID": NewId,
-            "问题": "",
-            "解析": ""
-        }
-        self.ParsingList.append(NewItem)
+        new_item = {"解析ID": new_id, "问题": "", "解析": ""}
+        self.ParsingList.append(new_item)
         self.CurIndex = len(self.ParsingList) - 1
         self.OnUpdate(self.ParsingList)
-        return NewId
+        return new_id
 
-    def HandleDelete(self, Index):
-        if 0 <= Index < len(self.ParsingList):
-            self.ParsingList.pop(Index)
+    def HandleDelete(self, index):
+        if 0 <= index < len(self.ParsingList):
+            self.ParsingList.pop(index)
             if self.ParsingList:
-                self.CurIndex = Index - 1 if Index - 1 >= 0 else 0
+                self.CurIndex = index - 1 if index > 0 else 0
             else:
                 self.CurIndex = -1
             self.OnUpdate(self.ParsingList)
 
-    def HandleRename(self, Index, NewId):
-        if self.IsDuplicateId(NewId, excludeIndex=Index):
+    def HandleRename(self, index, new_id):
+        if self.IsDuplicateId(new_id, excludeIndex=index):
             return False
-        self.ParsingList[Index]["解析ID"] = NewId
+        self.ParsingList[index]["解析ID"] = new_id
         self.OnUpdate(self.ParsingList)
         return True
 
-    def HandleReorder(self, IdOrder):
-        IdToItem = {item.get("解析ID"): item for item in self.ParsingList}
-        NewList = [IdToItem[pid] for pid in IdOrder if pid in IdToItem]
-        if len(NewList) == len(self.ParsingList):
-            self.ParsingList[:] = NewList
+    def HandleReorder(self, id_order):
+        id_to_item = {p["解析ID"]: p for p in self.ParsingList}
+        new_list = [id_to_item[i] for i in id_order if i in id_to_item]
+        if len(new_list) == len(self.ParsingList):
+            self.ParsingList[:] = new_list
             self.OnUpdate(self.ParsingList)
 
-    def IsDuplicateId(self, Id, excludeIndex=None):
-        for I, Item in enumerate(self.ParsingList):
-            if I == excludeIndex:
+    def IsDuplicateId(self, id, excludeIndex=None):
+        for i, p in enumerate(self.ParsingList):
+            if i == excludeIndex:
                 continue
-            if Item.get("解析ID") == Id:
+            if p.get("解析ID") == id:
                 return True
         return False
-
-    def ClearEditor(self):
-        self.EditQuestion.blockSignals(True)
-        self.EditQuestion.clear()
-        self.EditQuestion.blockSignals(False)
-        self.EditAnalysis.blockSignals(True)
-        self.EditAnalysis.clear()
-        self.EditAnalysis.blockSignals(False)
