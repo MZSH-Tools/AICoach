@@ -89,31 +89,36 @@ def SavePublicParsingLibrary(NewList):
         print(f"保存 JSON 文件失败：{e}")
 
 def OnImageChange(SetName, OldFileName, SourcePath):
-    """
-    图片处理统一函数：
-    - SetName: 新图名称（不含扩展名）
-    - OldFileName: 原图文件名（含扩展名）
-    - SourcePath: 新图片路径，若为空表示清空
-    """
-    if OldFileName:
+    if not SetName:
+        return ""
+
+    # 删除逻辑
+    if not SourcePath:
+        if OldFileName:
+            TargetPath = os.path.join(OutputImageDir, OldFileName)
+            if os.path.exists(TargetPath):
+                os.remove(TargetPath)
+        return ""
+
+    Ext = os.path.splitext(SourcePath)[1]
+    NewName = f"{SetName}{Ext}"
+    TargetPath = os.path.join(OutputImageDir, NewName)
+
+    # 删除旧图（不同名时才删）
+    if OldFileName and OldFileName != NewName:
         OldPath = os.path.join(OutputImageDir, OldFileName)
         if os.path.exists(OldPath):
             os.remove(OldPath)
 
-    if not SourcePath:
-        return ""
+    # 拷贝新图
+    if not os.path.exists(TargetPath):
+        try:
+            shutil.copy(SourcePath, TargetPath)
+        except Exception as e:
+            print(f"[图片复制失败] {e}")
+            return ""
 
-    Ext = os.path.splitext(SourcePath)[1]
-    NewFileName = f"{SetName}{Ext}"
-    TargetPath = os.path.join(OutputImageDir, NewFileName)
-    try:
-        shutil.copy(SourcePath, TargetPath)
-    except Exception as e:
-        print(f"图片复制失败: {e}")
-        return ""
-
-    return NewFileName
-
+    return NewName
 
 Window = QtWidgets.QMainWindow()
 Window.setWindowTitle("题库数据更新程序")
