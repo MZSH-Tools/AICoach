@@ -1,5 +1,6 @@
 ﻿from PySide2 import QtWidgets
 from Widget.QuestionWidget import QuestionWidget
+from Widget.ParsingWidget import ParsingWidget
 import os, json, sys
 
 # 路径管理
@@ -27,13 +28,28 @@ def SaveQuestions(NewQuestions):
     except Exception as e:
         print(f"保存 JSON 文件失败：{e}")
 
+# 回调函数：保存公共解析库内容
+def SavePublicParsingLibrary(NewList):
+    JsonData["公共解析库"] = NewList
+    try:
+        with open(JsonPath, "w", encoding="utf-8") as f:
+            json.dump(JsonData, f, ensure_ascii=False, indent=2)
+        print("公共解析库已保存")
+    except Exception as e:
+        print(f"保存 JSON 文件失败：{e}")
+
 # 初始化 UI 应用和主窗口
 App = QtWidgets.QApplication()
 Window = QtWidgets.QMainWindow()
-Window.setWindowTitle("数据更新程序")
+Window.setWindowTitle("题库数据更新程序")
 
+# 设置更合适的窗口大小（80% 屏幕）
 Screen = App.primaryScreen().geometry()
-Window.setGeometry(Screen.width() // 4, Screen.height() // 4, Screen.width() // 2, Screen.height() // 2)
+Width = int(Screen.width() * 0.8)
+Height = int(Screen.height() * 0.8)
+Left = (Screen.width() - Width) // 2
+Top = (Screen.height() - Height) // 2
+Window.setGeometry(Left, Top, Width, Height)
 
 CentralWidget = QtWidgets.QWidget()
 Window.setCentralWidget(CentralWidget)
@@ -54,13 +70,14 @@ def ChangePage(PageIndex):
         if 0 <= PageIndex < len(ButtonList):
             ButtonList[PageIndex].setChecked(True)
             CurPageIndex = PageIndex
+            Stack.setCurrentIndex(PageIndex)
             print(f"切换至页面：{CurPageIndex}")
 
 # 初始化页面组件
 def InitWidgetMap():
     return {
         "题库": QuestionWidget(Questions, OnUpdateCallback=SaveQuestions),
-        # "解析库": ParsingWidget(PublicParsingLibrary, OnUpdateCallback=SaveParsing),
+        "公共解析库": ParsingWidget(PublicParsingLibrary, OnUpdate=SavePublicParsingLibrary)
     }
 
 WidgetMap = InitWidgetMap()
@@ -71,14 +88,14 @@ CurPageIndex = -1
 for Index, (Name, Widget) in enumerate(WidgetMap.items()):
     Button = QtWidgets.QPushButton(Name)
     Button.setCheckable(True)
-    Button.clicked.connect(lambda checked=False, i=Index: Stack.setCurrentIndex(i))
+    Button.setMinimumWidth(100)
+    Button.clicked.connect(lambda checked=False, i=Index: ChangePage(i))
     ButtonList.append(Button)
     TagLayout.addWidget(Button)
     Stack.addWidget(Widget)
 
 TagLayout.addStretch()
-Stack.currentChanged.connect(ChangePage)
-ChangePage(Stack.currentIndex())
+ChangePage(0)  # ✅ 默认选中第一个页面
 
 Window.show()
 App.exec_()
