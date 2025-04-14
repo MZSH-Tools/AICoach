@@ -88,18 +88,32 @@ def SavePublicParsingLibrary(NewList):
     except Exception as e:
         print(f"保存 JSON 文件失败：{e}")
 
-def OnImageImport(SourcePath):
-    FileName = os.path.basename(SourcePath)
-    TargetPath = os.path.join(OutputImageDir, FileName)
-    if not os.path.exists(TargetPath):
-        shutil.copy(SourcePath, TargetPath)
-    RelPath = os.path.relpath(TargetPath, FileDir).replace("\\", "/")
-    return RelPath
+def OnImageChange(SetName, OldFileName, SourcePath):
+    """
+    图片处理统一函数：
+    - SetName: 新图名称（不含扩展名）
+    - OldFileName: 原图文件名（含扩展名）
+    - SourcePath: 新图片路径，若为空表示清空
+    """
+    if OldFileName:
+        OldPath = os.path.join(OutputImageDir, OldFileName)
+        if os.path.exists(OldPath):
+            os.remove(OldPath)
 
-def OnImageDelete(RelPath):
-    TargetPath = os.path.join(FileDir, RelPath)
-    if os.path.exists(TargetPath):
-        os.remove(TargetPath)
+    if not SourcePath:
+        return ""
+
+    Ext = os.path.splitext(SourcePath)[1]
+    NewFileName = f"{SetName}{Ext}"
+    TargetPath = os.path.join(OutputImageDir, NewFileName)
+    try:
+        shutil.copy(SourcePath, TargetPath)
+    except Exception as e:
+        print(f"图片复制失败: {e}")
+        return ""
+
+    return NewFileName
+
 
 Window = QtWidgets.QMainWindow()
 Window.setWindowTitle("题库数据更新程序")
@@ -132,7 +146,7 @@ def ChangePage(PageIndex):
 
 def InitWidgetMap():
     return {
-        "题库": QuestionWidget(Questions, OnUpdateCallback=SaveQuestions, OnImageAdd=OnImageImport, OnImageDelete=OnImageDelete),
+        "题库": QuestionWidget(Questions, OnUpdateCallback=SaveQuestions, OnImageAdd=OnImageChange),
         "公共解析库": ParsingWidget(PublicParsingLibrary, OnUpdate=SavePublicParsingLibrary)
     }
 

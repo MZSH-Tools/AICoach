@@ -1,17 +1,17 @@
 ﻿from PySide2 import QtWidgets
-from Widget.ListControlWidget import ListControlWidget
+from Widget.Item.ListControlWidget import ListControlWidget
+from Widget.Item.ImageSelectorWidget import ImageSelectorWidget
 from Widget.OptionWidget import OptionWidget
 from Widget.ParsingWidget import ParsingWidget
 from collections import OrderedDict
 import os
 
 class QuestionWidget(QtWidgets.QWidget):
-    def __init__(self, Questions, OnUpdateCallback=None, OnImageAdd=None, OnImageDelete=None, Parent=None):
+    def __init__(self, Questions, OnUpdateCallback=None, OnImageAdd=None, Parent=None):
         super().__init__(Parent)
         self.Questions = Questions
         self.OnUpdate = OnUpdateCallback
         self.OnImageAdd = OnImageAdd
-        self.OnImageDelete = OnImageDelete
         self.CurIndex = -1
         self.FileDir = os.path.dirname(os.path.abspath(__file__))
         QuestionWidget.EnsureDataStructure(self.Questions)
@@ -31,18 +31,18 @@ class QuestionWidget(QtWidgets.QWidget):
         Layout.addWidget(self.ListControl, stretch=1)
 
         RightLayout = QtWidgets.QVBoxLayout()
+
         self.EditText = QtWidgets.QTextEdit()
         self.EditText.textChanged.connect(self.OnQuestionTextChanged)
         RightLayout.addWidget(QtWidgets.QLabel("题目文本："))
         RightLayout.addWidget(self.EditText)
 
-        self.ImagePathLabel = QtWidgets.QLabel("(题干图片路径)")
-        self.SelectImageButton = QtWidgets.QPushButton("选择题干图片")
-        self.SelectImageButton.clicked.connect(self.OnSelectImage)
-        RightLayout.addWidget(self.ImagePathLabel)
-        RightLayout.addWidget(self.SelectImageButton)
+        self.ImageWidget = ImageSelectorWidget("图片：")
+        self.ImageWidget.SetOnSelect(self.OnSelectImage)
+        self.ImageWidget.SetOnDelete(self.OnDeleteImage)
+        RightLayout.addWidget(self.ImageWidget)
 
-        self.OptionWidget = OptionWidget([], self.OnOptionUpdated, self.OnImageAdd, self.OnImageDelete)
+        self.OptionWidget = OptionWidget([], self.OnOptionUpdated, self.HandleOptionImageChange)
         RightLayout.addWidget(QtWidgets.QLabel("选项："))
         RightLayout.addWidget(self.OptionWidget)
 
@@ -79,7 +79,7 @@ class QuestionWidget(QtWidgets.QWidget):
             self.EditText.blockSignals(True)
             self.EditText.setPlainText(Q["题目"].get("文本", ""))
             self.EditText.blockSignals(False)
-            self.ImagePathLabel.setText(Q["题目"].get("图片", ""))
+            self.ImageWidget.SetText(Q["题目"].get("图片", ""))
             self.AnalysisText.blockSignals(True)
             self.AnalysisText.setPlainText(Q.get("题目解析", ""))
             self.AnalysisText.blockSignals(False)
@@ -111,10 +111,28 @@ class QuestionWidget(QtWidgets.QWidget):
     def OnSelectImage(self):
         Path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "选择图片", "", "Images (*.png *.jpg *.jpeg)")
         if Path and self.OnImageAdd and self.CurIndex != -1:
-            RelPath = self.OnImageAdd(Path, self.Questions[self.CurIndex]["题目ID"])
-            self.ImagePathLabel.setText(RelPath)
-            self.Questions[self.CurIndex]["题目"]["图片"] = RelPath
+            OldFileName = self.ImageWidget.GetText()
+            Qid = self.Questions[self.CurIndex]["题目ID"]
+            NewFileName = self.OnImageAdd(Qid, OldFileName, Path)
+            self.ImageWidget.SetText(NewFileName)
+            self.Questions[self.CurIndex]["题目"]["图片"] = NewFileName
             self.OnUpdate(self.Questions)
+
+    def OnDeleteImage(self):
+        if self.CurIndex != -1 and self.OnImageAdd:
+            OldFileName = self.ImageWidget.GetText()
+            Qid = self.Questions[self.CurIndex]["题目ID"]
+            Result = self.OnImageAdd(Qid, OldFileName, "")
+            self.ImageWidget.SetText("")
+            self.Questions[self.CurIndex]["题目"]["图片"] = ""
+            self.OnUpdate(self.Questions)
+
+    def HandleOptionImageChange(self, OptionId, OldFileName, SourcePath):
+        if self.CurIndex != -1 and self.OnImageAdd:
+            Qid = self.Questions[self.CurIndex]["题目ID"]
+            SetName = f"{Qid}_{OptionId}"
+            return self.OnImageAdd(SetName, OldFileName, SourcePath)
+        return ""
 
     def HandleAddQuestion(self):
         NewId, Ok = QtWidgets.QInputDialog.getText(self, "添加题目", "请输入题目ID：")
@@ -171,19 +189,10 @@ class QuestionWidget(QtWidgets.QWidget):
         self.EditText.blockSignals(True)
         self.EditText.clear()
         self.EditText.blockSignals(False)
-        self.ImagePathLabel.setText("")
+        self.ImageWidget.SetText("")
         self.AnalysisText.blockSignals(True)
         self.AnalysisText.clear()
         self.AnalysisText.blockSignals(False)
-
-    QUESTION_TEMPLATE = [
-        ("题目ID", ""),  # 主键
-        ("题目", {"文本": "", "图片": ""}),  # 嵌套结构
-        ("题目类型", "单选"),
-        ("选项", []),  # 结构列表
-        ("解析库", []),
-        ("题目解析", "")
-    ]
 
     @staticmethod
     def EnsureFieldsInOrder(DictObj, TemplateList, Index=0):
@@ -199,6 +208,13 @@ class QuestionWidget(QtWidgets.QWidget):
     @staticmethod
     def EnsureDataStructure(Questions):
         for i, Q in enumerate(Questions):
-            QuestionWidget.EnsureFieldsInOrder(Q, QuestionWidget.QUESTION_TEMPLATE, i)
+            QuestionWidget.EnsureFieldsInOrder(Q, [
+                ("题目ID", ""),
+                ("题目", {"文本": "", "图片": ""}),
+                ("题目类型", "单选"),
+                ("选项", []),
+                ("解析库", []),
+                ("题目解析", "")
+            ], i)
             OptionWidget.EnsureDataStructure(Q["选项"])
             ParsingWidget.EnsureDataStructure(Q["解析库"])
