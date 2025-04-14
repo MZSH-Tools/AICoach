@@ -1,5 +1,6 @@
 ﻿from PySide2 import QtWidgets
 from Widget.ListControlWidget import ListControlWidget
+from collections import OrderedDict
 
 class OptionWidget(QtWidgets.QWidget):
     def __init__(self, OptionList, OnUpdate, OnImageAdd, OnImageDelete, Parent=None):
@@ -9,7 +10,7 @@ class OptionWidget(QtWidgets.QWidget):
         self.OnImageAdd = OnImageAdd
         self.OnImageDelete = OnImageDelete
         self.CurIndex = -1
-        self.EnsureDataStructure(self.OptionList)
+        OptionWidget.EnsureDataStructure(self.OptionList)
         self.OnUpdate(self.OptionList)
         self.InitUI()
 
@@ -51,13 +52,29 @@ class OptionWidget(QtWidgets.QWidget):
 
         self.RefreshList()
 
-    def EnsureDataStructure(self, OptionList):
-        for i, opt in enumerate(OptionList):
-            opt.setdefault("选项ID", f"选项{i+1}")
-            opt.setdefault("文本", "")
-            opt.setdefault("图片", "")
-            opt.setdefault("是否正确", False)
-            opt.setdefault("解析", "")
+    OPTION_TEMPLATE = [
+        ("选项ID", lambda i: f"选项{i + 1}"),
+        ("文本", ""),
+        ("图片", ""),
+        ("是否正确", False),
+        ("解析", "")
+    ]
+
+    @staticmethod
+    def EnsureFieldsInOrder(DictObj, TemplateList, Index=0):
+        Ordered = OrderedDict()
+        for Key, Default in TemplateList:
+            if callable(Default):
+                Ordered[Key] = DictObj.get(Key, Default(Index))
+            else:
+                Ordered[Key] = DictObj.get(Key, Default)
+        DictObj.clear()
+        DictObj.update(Ordered)
+
+    @staticmethod
+    def EnsureDataStructure(OptionList):
+        for i, Opt in enumerate(OptionList):
+            OptionWidget.EnsureFieldsInOrder(Opt, OptionWidget.OPTION_TEMPLATE, i)
 
     def RefreshList(self):
         self.ListControl.Refresh()

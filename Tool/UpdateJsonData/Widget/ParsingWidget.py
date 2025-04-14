@@ -1,5 +1,6 @@
 ﻿from PySide2 import QtWidgets
 from Widget.ListControlWidget import ListControlWidget
+from collections import OrderedDict
 
 class ParsingWidget(QtWidgets.QWidget):
     def __init__(self, ParsingList, OnUpdate, Parent=None):
@@ -7,7 +8,7 @@ class ParsingWidget(QtWidgets.QWidget):
         self.ParsingList = ParsingList
         self.OnUpdate = OnUpdate
         self.CurIndex = -1
-        self.EnsureDataStructure(self.ParsingList)
+        ParsingWidget.EnsureDataStructure(self.ParsingList)
         self.OnUpdate(self.ParsingList)
         self.InitUI()
 
@@ -40,11 +41,27 @@ class ParsingWidget(QtWidgets.QWidget):
 
         self.RefreshList()
 
-    def EnsureDataStructure(self, ParsingList):
-        for i, p in enumerate(ParsingList):
-            p.setdefault("解析ID", f"解析{i+1}")
-            p.setdefault("问题", "")
-            p.setdefault("解析", "")
+    PARSING_TEMPLATE = [
+        ("解析ID", lambda i: f"解析{i + 1}"),
+        ("问题", ""),
+        ("解析", "")
+    ]
+
+    @staticmethod
+    def EnsureFieldsInOrder(DictObj, TemplateList, Index=0):
+        Ordered = OrderedDict()
+        for Key, Default in TemplateList:
+            if callable(Default):
+                Ordered[Key] = DictObj.get(Key, Default(Index))
+            else:
+                Ordered[Key] = DictObj.get(Key, Default)
+        DictObj.clear()
+        DictObj.update(Ordered)
+
+    @staticmethod
+    def EnsureDataStructure(ParsingList):
+        for i, P in enumerate(ParsingList):
+            ParsingWidget.EnsureFieldsInOrder(P, ParsingWidget.PARSING_TEMPLATE, i)
 
     def RefreshList(self):
         self.ListControl.Refresh()

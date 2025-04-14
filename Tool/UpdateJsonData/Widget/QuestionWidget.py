@@ -2,6 +2,7 @@
 from Widget.ListControlWidget import ListControlWidget
 from Widget.OptionWidget import OptionWidget
 from Widget.ParsingWidget import ParsingWidget
+from collections import OrderedDict
 import os
 
 class QuestionWidget(QtWidgets.QWidget):
@@ -13,7 +14,7 @@ class QuestionWidget(QtWidgets.QWidget):
         self.OnImageDelete = OnImageDelete
         self.CurIndex = -1
         self.FileDir = os.path.dirname(os.path.abspath(__file__))
-        self.EnsureDataStructure(self.Questions)
+        QuestionWidget.EnsureDataStructure(self.Questions)
         self.OnUpdate(self.Questions)
         self.InitUI()
 
@@ -175,21 +176,29 @@ class QuestionWidget(QtWidgets.QWidget):
         self.AnalysisText.clear()
         self.AnalysisText.blockSignals(False)
 
-    def EnsureDataStructure(self, Questions):
-        for Q in Questions:
-            Q.setdefault("题目", {}).setdefault("文本", "")
-            Q["题目"].setdefault("图片", "")
-            Q.setdefault("题目类型", "单选")
-            Q.setdefault("选项", [])
-            Q.setdefault("解析库", [])
-            Q.setdefault("题目解析", "")
-            for I, Opt in enumerate(Q["选项"]):
-                Opt.setdefault("选项ID", f"选项{I + 1}")
-                Opt.setdefault("文本", "")
-                Opt.setdefault("图片", "")
-                Opt.setdefault("是否正确", False)
-                Opt.setdefault("解析", "")
-            for I, Parse in enumerate(Q["解析库"]):
-                Parse.setdefault("解析ID", f"解析{I + 1}")
-                Parse.setdefault("问题", "")
-                Parse.setdefault("解析", "")
+    QUESTION_TEMPLATE = [
+        ("题目ID", ""),  # 主键
+        ("题目", {"文本": "", "图片": ""}),  # 嵌套结构
+        ("题目类型", "单选"),
+        ("选项", []),  # 结构列表
+        ("解析库", []),
+        ("题目解析", "")
+    ]
+
+    @staticmethod
+    def EnsureFieldsInOrder(DictObj, TemplateList, Index=0):
+        Ordered = OrderedDict()
+        for Key, Default in TemplateList:
+            if callable(Default):
+                Ordered[Key] = DictObj.get(Key, Default(Index))
+            else:
+                Ordered[Key] = DictObj.get(Key, Default)
+        DictObj.clear()
+        DictObj.update(Ordered)
+
+    @staticmethod
+    def EnsureDataStructure(Questions):
+        for i, Q in enumerate(Questions):
+            QuestionWidget.EnsureFieldsInOrder(Q, QuestionWidget.QUESTION_TEMPLATE, i)
+            OptionWidget.EnsureDataStructure(Q["选项"])
+            ParsingWidget.EnsureDataStructure(Q["解析库"])
