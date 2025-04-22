@@ -24,7 +24,8 @@ class _QuestionItem:
     def ResolveImagePath(RelativePath, RootPath):
         if not RelativePath:
             return None
-        AbsolutePath = os.path.join(RootPath, RelativePath)
+        ImageRoot = os.path.join(RootPath, "Assets/Images")
+        AbsolutePath = os.path.join(ImageRoot, RelativePath)
         return AbsolutePath if os.path.exists(AbsolutePath) else "[图片未找到]"
 
     def GenerateMessageBlocks(self) -> list[str]:
