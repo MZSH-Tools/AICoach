@@ -18,6 +18,7 @@ class _QuestionItem:
         self.CorrectAnswers = [OptionLabels[i] for i, Option in enumerate(self.Options)  if Option.get("是否正确")]
         self.Explanation = RawData.get("解析库", [])
         self.MessageBlocks = self.GenerateMessageBlocks()
+        self.RawData = RawData
 
     @staticmethod
     def ResolveImagePath(RelativePath, RootPath):
